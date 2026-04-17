@@ -1,0 +1,17 @@
+# .NET build outputs
+**/bin/
+**/obj/
+
+# Visual Studio / VS Code user state
+.vs/
+.vscode/
+*.user
+*.suo
+*.userprefs
+
+# Rider
+.idea/
+
+# Logs and temp
+*.log
+*.tmp
