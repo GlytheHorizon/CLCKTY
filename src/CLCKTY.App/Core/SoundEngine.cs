@@ -1,6 +1,10 @@
 using System.Buffers;
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using NVorbis;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -10,6 +14,15 @@ public sealed class SoundEngine : ISoundEngine
 {
     private const int OutputSampleRate = 48000;
     private const int OutputChannels = 2;
+    private const int MinImportedSliceMs = 12;
+    private const int MaxImportedSliceMs = 1200;
+    private const uint MapvkVscToVk = 1;
+    private const uint MapvkVscToVkEx = 3;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     private static readonly WaveFormat OutputFormat =
         WaveFormat.CreateIeeeFloatWaveFormat(OutputSampleRate, OutputChannels);
@@ -371,6 +384,16 @@ public sealed class SoundEngine : ISoundEngine
 
     private static LoadedSoundProfile? LoadProfileFromFolder(string folderPath, CancellationToken cancellationToken)
     {
+        var configPath = Path.Combine(folderPath, "config.json");
+        if (File.Exists(configPath))
+        {
+            var configProfile = LoadProfileFromConfig(folderPath, configPath, cancellationToken);
+            if (configProfile is not null)
+            {
+                return configProfile;
+            }
+        }
+
         var waveFiles = Directory.EnumerateFiles(folderPath, "*.wav", SearchOption.TopDirectoryOnly)
             .ToList();
 
@@ -412,19 +435,314 @@ public sealed class SoundEngine : ISoundEngine
             CreateDefaultKeyMap());
     }
 
+    private static LoadedSoundProfile? LoadProfileFromConfig(string folderPath, string configPath, CancellationToken cancellationToken)
+    {
+        ImportedSoundPackConfig? config;
+
+        try
+        {
+            var json = File.ReadAllText(configPath);
+            config = JsonSerializer.Deserialize<ImportedSoundPackConfig>(json, JsonOptions);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+
+        if (config is null || string.IsNullOrWhiteSpace(config.Sound) || config.Defines is null || config.Defines.Count == 0)
+        {
+            return null;
+        }
+
+        var soundFilePath = Path.Combine(folderPath, config.Sound);
+        if (!File.Exists(soundFilePath))
+        {
+            return null;
+        }
+
+        float[] sourceSamples;
+
+        try
+        {
+            sourceSamples = LoadNormalizedSamplesFromFile(soundFilePath);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+
+        if (sourceSamples.Length < OutputChannels)
+        {
+            return null;
+        }
+
+        var clips = new Dictionary<string, SoundClip>(StringComparer.OrdinalIgnoreCase);
+        var keyMap = new Dictionary<int, string>();
+        var sliceToClip = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var define in config.Defines)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var hasImportedKey = int.TryParse(define.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var importedKeyCode);
+
+            var slice = define.Value;
+            if (slice is null || slice.Length == 0)
+            {
+                continue;
+            }
+
+            var startMs = Math.Max(0, slice[0]);
+            var durationMs = slice.Length > 1
+                ? Math.Clamp(slice[1], MinImportedSliceMs, MaxImportedSliceMs)
+                : 180;
+            var sliceKey = FormattableString.Invariant($"{startMs}:{durationMs}");
+
+            if (!sliceToClip.TryGetValue(sliceKey, out var clipId))
+            {
+                var sliced = SliceCachedSound(sourceSamples, startMs, durationMs);
+                if (sliced is null)
+                {
+                    continue;
+                }
+
+                clipId = $"seg{clips.Count + 1:D3}";
+                var segmentName = $"Segment {clips.Count + 1}";
+                clips[clipId] = new SoundClip(clipId, segmentName, sliced);
+                sliceToClip[sliceKey] = clipId;
+            }
+
+            if (hasImportedKey && TryMapImportedKeyCodeToVirtualKey(importedKeyCode, out var virtualKey))
+            {
+                keyMap[virtualKey] = clipId;
+            }
+        }
+
+        if (clips.Count == 0)
+        {
+            return null;
+        }
+
+        var folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var displayName = string.IsNullOrWhiteSpace(config.Name) ? ToDisplayName(folderName) : config.Name.Trim();
+        var normalizedIdSeed = string.IsNullOrWhiteSpace(config.Id) ? displayName : config.Id;
+        var baseId = NormalizeToken(normalizedIdSeed);
+        var uniqueId = Guid.NewGuid().ToString("N")[..6];
+        var profileId = $"custom-{baseId}-{uniqueId}";
+        var defaultClipId = clips.Keys.First();
+
+        return new LoadedSoundProfile(
+            profileId,
+            $"{displayName} (Imported)",
+            defaultClipId,
+            clips,
+            keyMap.Count > 0 ? keyMap : new Dictionary<int, string>());
+    }
+
     private static CachedSound LoadCachedSoundFromFile(string filePath)
     {
-        using var reader = new AudioFileReader(filePath);
+        var sampleData = LoadNormalizedSamplesFromFile(filePath);
+        return new CachedSound(OutputFormat, sampleData);
+    }
 
-        ISampleProvider provider = reader;
+    private static CachedSound? SliceCachedSound(float[] sourceSamples, int startMs, int durationMs)
+    {
+        if (sourceSamples.Length < OutputChannels)
+        {
+            return null;
+        }
 
+        var totalFrames = sourceSamples.Length / OutputChannels;
+        var startFrame = (int)Math.Round((startMs / 1000d) * OutputSampleRate, MidpointRounding.AwayFromZero);
+        if (startFrame >= totalFrames)
+        {
+            return null;
+        }
+
+        var requestedFrames = (int)Math.Round((durationMs / 1000d) * OutputSampleRate, MidpointRounding.AwayFromZero);
+        requestedFrames = Math.Max(OutputSampleRate * MinImportedSliceMs / 1000, requestedFrames);
+
+        var availableFrames = totalFrames - startFrame;
+        var frameCount = Math.Min(requestedFrames, availableFrames);
+        if (frameCount < 8)
+        {
+            return null;
+        }
+
+        var segment = new float[frameCount * OutputChannels];
+        Array.Copy(sourceSamples, startFrame * OutputChannels, segment, 0, segment.Length);
+        ApplyFade(segment, Math.Min(96, frameCount / 4));
+        return new CachedSound(OutputFormat, segment);
+    }
+
+    private static bool TryMapImportedKeyCodeToVirtualKey(int importedKeyCode, out int virtualKey)
+    {
+        virtualKey = 0;
+        if (importedKeyCode <= 0)
+        {
+            return false;
+        }
+
+        var mapped = MapVirtualKey(unchecked((uint)importedKeyCode), MapvkVscToVkEx);
+
+        if (mapped == 0 && importedKeyCode > 0xFF)
+        {
+            var lowByteScanCode = (uint)(importedKeyCode & 0xFF);
+            mapped = MapVirtualKey(lowByteScanCode, MapvkVscToVkEx);
+
+            if (mapped == 0)
+            {
+                mapped = MapVirtualKey(lowByteScanCode, MapvkVscToVk);
+            }
+        }
+
+        if (mapped == 0 && importedKeyCode <= 0xFF)
+        {
+            mapped = (uint)importedKeyCode;
+        }
+
+        if (mapped == 0 || mapped > 0xFE)
+        {
+            return false;
+        }
+
+        virtualKey = (int)mapped;
+        return true;
+    }
+
+    private static float[] LoadNormalizedSamplesFromFile(string filePath)
+    {
+        var extension = Path.GetExtension(filePath);
+
+        if (string.Equals(extension, ".ogg", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".oga", StringComparison.OrdinalIgnoreCase))
+        {
+            return ReadVorbisSamples(filePath);
+        }
+
+        try
+        {
+            using var reader = new AudioFileReader(filePath);
+            return ReadNormalizedSamples(reader);
+        }
+        catch (Exception)
+        {
+            using var mediaReader = new MediaFoundationReader(filePath);
+            return ReadNormalizedSamples(mediaReader.ToSampleProvider());
+        }
+    }
+
+    private static float[] ReadVorbisSamples(string filePath)
+    {
+        using var vorbisReader = new VorbisReader(filePath);
+
+        var sourceChannels = Math.Max(1, vorbisReader.Channels);
+        var sourceSampleRate = Math.Max(1, vorbisReader.SampleRate);
+        var readBufferSize = Math.Max(4096 * sourceChannels, sourceSampleRate * sourceChannels / 6);
+        var readBuffer = ArrayPool<float>.Shared.Rent(readBufferSize);
+
+        try
+        {
+            var rawSamples = new List<float>(sourceSampleRate * sourceChannels);
+            int read;
+
+            while ((read = vorbisReader.ReadSamples(readBuffer, 0, readBuffer.Length)) > 0)
+            {
+                for (var i = 0; i < read; i++)
+                {
+                    rawSamples.Add(readBuffer[i]);
+                }
+            }
+
+            if (rawSamples.Count == 0)
+            {
+                return Array.Empty<float>();
+            }
+
+            return ConvertRawInterleavedToOutputStereo(rawSamples.ToArray(), sourceChannels, sourceSampleRate);
+        }
+        finally
+        {
+            ArrayPool<float>.Shared.Return(readBuffer);
+        }
+    }
+
+    private static float[] ConvertRawInterleavedToOutputStereo(float[] rawSamples, int sourceChannels, int sourceSampleRate)
+    {
+        var sourceFrames = rawSamples.Length / sourceChannels;
+        if (sourceFrames <= 0)
+        {
+            return Array.Empty<float>();
+        }
+
+        var stereoSamples = new float[sourceFrames * OutputChannels];
+
+        if (sourceChannels == 1)
+        {
+            for (var frame = 0; frame < sourceFrames; frame++)
+            {
+                var sample = rawSamples[frame];
+                var offset = frame * OutputChannels;
+                stereoSamples[offset] = sample;
+                stereoSamples[offset + 1] = sample;
+            }
+        }
+        else
+        {
+            for (var frame = 0; frame < sourceFrames; frame++)
+            {
+                var sourceOffset = frame * sourceChannels;
+                var targetOffset = frame * OutputChannels;
+                stereoSamples[targetOffset] = rawSamples[sourceOffset];
+                stereoSamples[targetOffset + 1] = rawSamples[sourceOffset + 1];
+            }
+        }
+
+        if (sourceSampleRate == OutputSampleRate)
+        {
+            return stereoSamples;
+        }
+
+        var targetFrames = Math.Max(1, (int)Math.Round(sourceFrames * (OutputSampleRate / (double)sourceSampleRate), MidpointRounding.AwayFromZero));
+        var resampled = new float[targetFrames * OutputChannels];
+
+        for (var frame = 0; frame < targetFrames; frame++)
+        {
+            var sourcePosition = frame * (sourceSampleRate / (double)OutputSampleRate);
+            var sourceFrame = (int)sourcePosition;
+            var nextFrame = Math.Min(sourceFrame + 1, sourceFrames - 1);
+            var fraction = (float)(sourcePosition - sourceFrame);
+
+            var sourceOffset = sourceFrame * OutputChannels;
+            var nextOffset = nextFrame * OutputChannels;
+            var targetOffset = frame * OutputChannels;
+
+            var left = stereoSamples[sourceOffset] + ((stereoSamples[nextOffset] - stereoSamples[sourceOffset]) * fraction);
+            var right = stereoSamples[sourceOffset + 1] + ((stereoSamples[nextOffset + 1] - stereoSamples[sourceOffset + 1]) * fraction);
+
+            resampled[targetOffset] = left;
+            resampled[targetOffset + 1] = right;
+        }
+
+        return resampled;
+    }
+
+    private static float[] ReadNormalizedSamples(ISampleProvider provider)
+    {
         if (provider.WaveFormat.Channels == 1)
         {
             provider = new MonoToStereoSampleProvider(provider);
         }
-        else if (provider.WaveFormat.Channels != 2)
+        else if (provider.WaveFormat.Channels > 2)
         {
-            throw new NotSupportedException($"Unsupported channel count for {Path.GetFileName(filePath)}.");
+            var multiplexer = new MultiplexingSampleProvider(new[] { provider }, OutputChannels);
+            multiplexer.ConnectInputToOutput(0, 0);
+            multiplexer.ConnectInputToOutput(1, 1);
+            provider = multiplexer;
+        }
+        else if (provider.WaveFormat.Channels != OutputChannels)
+        {
+            throw new NotSupportedException($"Unsupported channel count for import ({provider.WaveFormat.Channels}).");
         }
 
         if (provider.WaveFormat.SampleRate != OutputSampleRate)
@@ -432,8 +750,7 @@ public sealed class SoundEngine : ISoundEngine
             provider = new WdlResamplingSampleProvider(provider, OutputSampleRate);
         }
 
-        var sampleData = ReadAllSamples(provider);
-        return new CachedSound(OutputFormat, sampleData);
+        return ReadAllSamples(provider);
     }
 
     private static float[] ReadAllSamples(ISampleProvider sampleProvider)
@@ -483,10 +800,46 @@ public sealed class SoundEngine : ISoundEngine
         return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(normalized.ToLowerInvariant());
     }
 
+    private static void ApplyFade(float[] samples, int fadeFrames)
+    {
+        if (samples.Length < OutputChannels * 3)
+        {
+            return;
+        }
+
+        var totalFrames = samples.Length / OutputChannels;
+        var clampedFadeFrames = Math.Clamp(fadeFrames, 1, Math.Max(1, totalFrames / 3));
+
+        for (var frame = 0; frame < clampedFadeFrames; frame++)
+        {
+            var gain = frame / (float)clampedFadeFrames;
+            var offset = frame * OutputChannels;
+
+            for (var channel = 0; channel < OutputChannels; channel++)
+            {
+                samples[offset + channel] *= gain;
+            }
+        }
+
+        for (var frame = 0; frame < clampedFadeFrames; frame++)
+        {
+            var gain = 1f - (frame / (float)clampedFadeFrames);
+            var offset = (totalFrames - 1 - frame) * OutputChannels;
+
+            for (var channel = 0; channel < OutputChannels; channel++)
+            {
+                samples[offset + channel] *= gain;
+            }
+        }
+    }
+
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
     }
+
+    [DllImport("user32.dll")]
+    private static extern uint MapVirtualKey(uint uCode, uint uMapType);
 
     private sealed class LoadedSoundProfile
     {
@@ -529,5 +882,23 @@ public sealed class SoundEngine : ISoundEngine
         public string DisplayName { get; }
 
         public CachedSound Sound { get; }
+    }
+
+    private sealed class ImportedSoundPackConfig
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; init; }
+
+        [JsonPropertyName("name")]
+        public string? Name { get; init; }
+
+        [JsonPropertyName("sound")]
+        public string? Sound { get; init; }
+
+        [JsonPropertyName("key_define_type")]
+        public string? KeyDefineType { get; init; }
+
+        [JsonPropertyName("defines")]
+        public Dictionary<string, int[]>? Defines { get; init; }
     }
 }

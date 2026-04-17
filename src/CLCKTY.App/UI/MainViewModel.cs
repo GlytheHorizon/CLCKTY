@@ -223,7 +223,7 @@ public sealed class MainViewModel : ViewModelBase
     {
         using var dialog = new Forms.FolderBrowserDialog
         {
-            Description = "Select a folder with .wav files (default.wav optional).",
+            Description = "Select a folder with .wav files or config.json + timeline audio.",
             UseDescriptionForTitle = true,
             ShowNewFolderButton = false
         };
@@ -242,7 +242,7 @@ public sealed class MainViewModel : ViewModelBase
 
             if (string.IsNullOrWhiteSpace(importedProfileId))
             {
-                StatusText = "No WAV files found in selected folder.";
+                StatusText = "No valid sound pack found (expected WAV files or config.json).";
                 return;
             }
 
