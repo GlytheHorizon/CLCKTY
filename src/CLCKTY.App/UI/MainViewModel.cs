@@ -17,7 +17,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly IReadOnlyList<KeyMappingInputOption> _mouseInputOptions;
     private readonly Dictionary<KeyMappingRowViewModel, (int inputCode, KeyEventTrigger trigger)> _rowBindings = new();
     private bool _isSynchronizingMappings;
-    private KeyMappingRowViewModel? _capturingKeyboardRow;
+    private KeyMappingRowViewModel? _capturingInputRow;
 
     private SoundProfileDescriptor? _selectedProfile;
     private bool _isEnabled;
@@ -40,6 +40,7 @@ public sealed class MainViewModel : ViewModelBase
         Profiles = new ObservableCollection<SoundProfileDescriptor>();
         KeyboardMappings = new ObservableCollection<KeyMappingRowViewModel>();
         MouseMappings = new ObservableCollection<KeyMappingRowViewModel>();
+        ActivityFeed = new ObservableCollection<string>();
 
         IsEnabled = _soundEngine.IsEnabled;
         Volume = _soundEngine.MasterVolume * 100d;
@@ -48,7 +49,7 @@ public sealed class MainViewModel : ViewModelBase
         ImportSoundPackCommand = new RelayCommand(_ => _ = ImportSoundPackAsync(), _ => !IsImportingPack);
         AddKeyboardMappingCommand = new RelayCommand(_ => AddKeyboardMapping());
         AddMouseMappingCommand = new RelayCommand(_ => AddMouseMapping());
-        CaptureKeyboardInputCommand = new RelayCommand(parameter => BeginKeyboardCapture(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel row && !row.IsMouseMapping);
+        CaptureKeyboardInputCommand = new RelayCommand(parameter => BeginInputCapture(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel);
         RemoveMappingCommand = new RelayCommand(parameter => RemoveMapping(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel);
         ImportMappingAudioCommand = new RelayCommand(parameter => _ = ImportMappingAudioAsync(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel && !IsImportingClip);
         RemoveClipOptionCommand = new RelayCommand(parameter => RemoveClipOption(parameter as KeyMappingOption), parameter => parameter is KeyMappingOption option && option.CanRemove);
@@ -69,6 +70,8 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<KeyMappingRowViewModel> KeyboardMappings { get; }
 
     public ObservableCollection<KeyMappingRowViewModel> MouseMappings { get; }
+
+    public ObservableCollection<string> ActivityFeed { get; }
 
     public ICommand ImportSoundPackCommand { get; }
 
@@ -181,7 +184,15 @@ public sealed class MainViewModel : ViewModelBase
     public string StatusText
     {
         get => _statusText;
-        private set => SetProperty(ref _statusText, value);
+        private set
+        {
+            if (!SetProperty(ref _statusText, value))
+            {
+                return;
+            }
+
+            AppendActivity(value);
+        }
     }
 
     public bool IsImportingPack
@@ -284,7 +295,7 @@ public sealed class MainViewModel : ViewModelBase
         var row = CreateMappingRow(false, nextCode, DefaultMappingTrigger);
         KeyboardMappings.Add(row);
         UpdateMappingOptions();
-        BeginKeyboardCapture(row);
+        BeginInputCapture(row);
     }
 
     private void AddMouseMapping()
@@ -293,7 +304,8 @@ public sealed class MainViewModel : ViewModelBase
         var row = CreateMappingRow(true, nextCode, DefaultMappingTrigger);
         MouseMappings.Add(row);
         UpdateMappingOptions();
-        StatusText = "Added mouse mapping row.";
+        BeginInputCapture(row);
+        StatusText = "Added mouse mapping row. Click a mouse button to bind input.";
     }
 
     private static int GetNextAvailableCode(
@@ -319,10 +331,10 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        if (ReferenceEquals(_capturingKeyboardRow, row))
+        if (ReferenceEquals(_capturingInputRow, row))
         {
-            _capturingKeyboardRow.IsCapturingInput = false;
-            _capturingKeyboardRow = null;
+            _capturingInputRow.IsCapturingInput = false;
+            _capturingInputRow = null;
         }
 
         if (_rowBindings.TryGetValue(row, out var previousBinding))
@@ -351,13 +363,13 @@ public sealed class MainViewModel : ViewModelBase
 
     public bool TryCaptureKeyboardInput(int virtualKey)
     {
-        if (_capturingKeyboardRow is null)
+        if (_capturingInputRow is null || _capturingInputRow.IsMouseMapping)
         {
             return false;
         }
 
-        var row = _capturingKeyboardRow;
-        _capturingKeyboardRow = null;
+        var row = _capturingInputRow;
+        _capturingInputRow = null;
 
         row.IsCapturingInput = false;
         row.InputCode = virtualKey;
@@ -365,21 +377,39 @@ public sealed class MainViewModel : ViewModelBase
         return true;
     }
 
-    private void BeginKeyboardCapture(KeyMappingRowViewModel? row)
+    public bool TryCaptureMouseInput(int inputCode)
     {
-        if (row is null || row.IsMouseMapping)
+        if (_capturingInputRow is null || !_capturingInputRow.IsMouseMapping)
+        {
+            return false;
+        }
+
+        var row = _capturingInputRow;
+        _capturingInputRow = null;
+
+        row.IsCapturingInput = false;
+        row.InputCode = inputCode;
+        StatusText = $"Captured mouse input: {row.InputLabel}.";
+        return true;
+    }
+
+    private void BeginInputCapture(KeyMappingRowViewModel? row)
+    {
+        if (row is null)
         {
             return;
         }
 
-        if (_capturingKeyboardRow is not null)
+        if (_capturingInputRow is not null)
         {
-            _capturingKeyboardRow.IsCapturingInput = false;
+            _capturingInputRow.IsCapturingInput = false;
         }
 
-        _capturingKeyboardRow = row;
+        _capturingInputRow = row;
         row.IsCapturingInput = true;
-        StatusText = "Press a key to set this mapping input.";
+        StatusText = row.IsMouseMapping
+            ? "Click a mouse button to set this mapping input."
+            : "Press a key to set this mapping input.";
     }
 
     private void LoadProfiles(string preferredProfileId)
@@ -569,10 +599,10 @@ public sealed class MainViewModel : ViewModelBase
 
     private void ClearMappings()
     {
-        if (_capturingKeyboardRow is not null)
+        if (_capturingInputRow is not null)
         {
-            _capturingKeyboardRow.IsCapturingInput = false;
-            _capturingKeyboardRow = null;
+            _capturingInputRow.IsCapturingInput = false;
+            _capturingInputRow = null;
         }
 
         _soundEngine.ClearMappings();
@@ -583,6 +613,21 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         StatusText = "Custom key and mouse mappings cleared.";
+    }
+
+    private void AppendActivity(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        ActivityFeed.Insert(0, $"{DateTime.Now:HH:mm:ss}  {message}");
+
+        while (ActivityFeed.Count > 40)
+        {
+            ActivityFeed.RemoveAt(ActivityFeed.Count - 1);
+        }
     }
 
     private async Task ImportSoundPackAsync()

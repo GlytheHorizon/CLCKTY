@@ -15,6 +15,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
+        NavigateToSection("Dashboard");
     }
 
     public void ShowPanel()
@@ -153,5 +154,46 @@ public partial class MainWindow : Window
         };
 
         BeginAnimation(OpacityProperty, fade, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private void DashboardNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        NavigateToSection("Dashboard");
+    }
+
+    private void SoundProfilesNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        NavigateToSection("SoundProfiles");
+    }
+
+    private void KeyMappingsNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        NavigateToSection("KeyMappings");
+    }
+
+    private void MouseSettingsNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        NavigateToSection("MouseSettings");
+    }
+
+    private void NavigateToSection(string section)
+    {
+        DashboardSectionPanel.Visibility = section == "Dashboard" ? Visibility.Visible : Visibility.Collapsed;
+        SoundProfilesSectionPanel.Visibility = section == "SoundProfiles" ? Visibility.Visible : Visibility.Collapsed;
+        KeyMappingsSectionPanel.Visibility = section == "KeyMappings" ? Visibility.Visible : Visibility.Collapsed;
+        MouseSettingsSectionPanel.Visibility = section == "MouseSettings" ? Visibility.Visible : Visibility.Collapsed;
+
+        SetNavButtonState(DashboardNavButton, section == "Dashboard");
+        SetNavButtonState(SoundProfilesNavButton, section == "SoundProfiles");
+        SetNavButtonState(KeyMappingsNavButton, section == "KeyMappings");
+        SetNavButtonState(MouseSettingsNavButton, section == "MouseSettings");
+    }
+
+    private static void SetNavButtonState(System.Windows.Controls.Button button, bool isActive)
+    {
+        button.Tag = isActive ? "Active" : null;
+        button.Foreground = isActive
+            ? new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#22D883"))
+            : new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#9FD8C1"));
     }
 }

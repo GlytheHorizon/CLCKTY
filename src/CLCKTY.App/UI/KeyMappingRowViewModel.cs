@@ -54,7 +54,7 @@ public sealed class KeyMappingRowViewModel : ViewModelBase
         {
             if (IsCapturingInput)
             {
-                return "Press any key...";
+                return IsMouseMapping ? "Click mouse button..." : "Press any key...";
             }
 
             var option = InputOptions.FirstOrDefault(item => item.Code == InputCode);

@@ -1,6 +1,7 @@
 ﻿using CLCKTY.App.Core;
 using CLCKTY.App.Services;
 using CLCKTY.App.UI;
+using System.Collections.Generic;
 using Wpf = System.Windows;
 using Threading = System.Threading;
 
@@ -20,6 +21,8 @@ public partial class App : Wpf.Application
 
 	private bool _isExitRequested;
 	private bool _isCleanedUp;
+	private readonly HashSet<int> _pressedKeys = new();
+	private bool _isToggleHotkeyLatched;
 
 	protected override void OnStartup(Wpf.StartupEventArgs e)
 	{
@@ -74,8 +77,22 @@ public partial class App : Wpf.Application
 
 	private void KeyboardHookService_KeyDown(object? sender, GlobalKeyPressedEventArgs e)
 	{
+		_pressedKeys.Add(e.VirtualKey);
+
 		if (_mainViewModel is not null && _mainViewModel.TryCaptureKeyboardInput(e.VirtualKey))
 		{
+			_pressedKeys.Remove(e.VirtualKey);
+			return;
+		}
+
+		if (_mainViewModel is not null && IsToggleHotkeyPressed())
+		{
+			if (!_isToggleHotkeyLatched)
+			{
+				_mainViewModel.IsEnabled = !_mainViewModel.IsEnabled;
+				_isToggleHotkeyLatched = true;
+			}
+
 			return;
 		}
 
@@ -89,6 +106,13 @@ public partial class App : Wpf.Application
 
 	private void KeyboardHookService_KeyUp(object? sender, GlobalKeyPressedEventArgs e)
 	{
+		_pressedKeys.Remove(e.VirtualKey);
+
+		if (!IsToggleHotkeyPressed())
+		{
+			_isToggleHotkeyLatched = false;
+		}
+
 		if (_mainViewModel is null || !_mainViewModel.IsKeyboardSoundEnabled)
 		{
 			return;
@@ -99,6 +123,11 @@ public partial class App : Wpf.Application
 
 	private void KeyboardHookService_MouseDown(object? sender, GlobalMouseButtonEventArgs e)
 	{
+		if (_mainViewModel is not null && _mainViewModel.TryCaptureMouseInput(e.InputCode))
+		{
+			return;
+		}
+
 		if (_mainViewModel is null || !_mainViewModel.IsMouseSoundEnabled)
 		{
 			return;
@@ -234,6 +263,15 @@ public partial class App : Wpf.Application
 			_singleInstanceMutex.Dispose();
 			_singleInstanceMutex = null;
 		}
+	}
+
+	private bool IsToggleHotkeyPressed()
+	{
+		var ctrlPressed = _pressedKeys.Contains(0x11) || _pressedKeys.Contains(0xA2) || _pressedKeys.Contains(0xA3);
+		var altPressed = _pressedKeys.Contains(0x12) || _pressedKeys.Contains(0xA4) || _pressedKeys.Contains(0xA5);
+		var mPressed = _pressedKeys.Contains(0x4D);
+
+		return ctrlPressed && altPressed && mPressed;
 	}
 }
 

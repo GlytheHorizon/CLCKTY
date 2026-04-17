@@ -133,6 +133,40 @@
             </Setter>
         </Style>
 
+        <Style x:Key="SidebarNavButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#2A3932" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="NavRoot"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"
+                                              Margin="2,0" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Tag" Value="Active">
+                                <Setter TargetName="NavRoot" Property="Background" Value="#1A2822" />
+                                <Setter TargetName="NavRoot" Property="BorderBrush" Value="#2B7058" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="NavRoot" Property="BorderBrush" Value="#2B7058" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="DangerIconButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="26" />
             <Setter Property="Height" Value="26" />
@@ -553,13 +587,9 @@
                         MinHeight="34">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource GlowButtonStyle}">
-                            <Setter Property="Visibility" Value="Collapsed" />
                             <Setter Property="HorizontalContentAlignment" Value="Left" />
                             <Setter Property="Padding" Value="10,8" />
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsMouseMapping}" Value="False">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
                                 <DataTrigger Binding="{Binding IsCapturingInput}" Value="True">
                                     <Setter Property="Background" Value="{StaticResource AccentBrush}" />
                                     <Setter Property="Foreground" Value="#07241A" />
@@ -568,23 +598,6 @@
                         </Style>
                     </Button.Style>
                 </Button>
-
-                <ComboBox Grid.Column="0"
-                          ItemsSource="{Binding InputOptions}"
-                          DisplayMemberPath="DisplayName"
-                          SelectedValuePath="Code"
-                          SelectedValue="{Binding InputCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                    <ComboBox.Style>
-                        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
-                            <Setter Property="Visibility" Value="Collapsed" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsMouseMapping}" Value="True">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ComboBox.Style>
-                </ComboBox>
 
                 <ComboBox Grid.Column="1"
                           ItemsSource="{Binding Options}"
@@ -678,44 +691,46 @@
 
                     <StackPanel Grid.Row="1"
                                 Margin="10,0,10,10">
-                        <Border Background="#1A2822"
-                                BorderBrush="#2B7058"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="10,8"
-                                Margin="0,0,0,6">
-                            <TextBlock Text="Dashboard"
-                                       Foreground="{StaticResource AccentBrush}"
-                                       FontWeight="SemiBold" />
-                        </Border>
+                        <Button x:Name="DashboardNavButton"
+                            Content="Dashboard"
+                            Margin="0,0,0,6"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Click="DashboardNavButton_Click" />
 
-                        <Border Background="Transparent"
-                                BorderBrush="#2A3932"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="10,8"
-                                Margin="0,0,0,6">
-                            <TextBlock Text="Sound Profiles"
-                                       Foreground="{StaticResource TextSecondaryBrush}" />
-                        </Border>
+                        <Button x:Name="SoundProfilesNavButton"
+                            Content="Sound Profiles"
+                            Margin="0,0,0,6"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Click="SoundProfilesNavButton_Click" />
 
-                        <Border Background="Transparent"
-                                BorderBrush="#2A3932"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="10,8"
-                                Margin="0,0,0,6">
-                            <TextBlock Text="Key Mappings"
-                                       Foreground="{StaticResource TextSecondaryBrush}" />
-                        </Border>
+                        <Button x:Name="KeyMappingsNavButton"
+                            Content="Key Mappings"
+                            Margin="0,0,0,6"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Click="KeyMappingsNavButton_Click" />
 
-                        <Border Background="Transparent"
-                                BorderBrush="#2A3932"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="10,8">
-                            <TextBlock Text="Mouse Settings"
-                                       Foreground="{StaticResource TextSecondaryBrush}" />
+                        <Button x:Name="MouseSettingsNavButton"
+                            Content="Mouse Settings"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Click="MouseSettingsNavButton_Click" />
+
+                        <Border Background="#15241E"
+                            BorderBrush="#2A5647"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="10,8"
+                            Margin="0,10,0,0">
+                            <StackPanel>
+                            <TextBlock Text="Hotkey"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="10"
+                                   FontWeight="SemiBold" />
+                            <TextBlock Text="Ctrl+Alt+M toggles all sounds"
+                                   Foreground="#C2E8D9"
+                                   FontSize="11"
+                                   Margin="0,4,0,0"
+                                   TextWrapping="Wrap" />
+                            </StackPanel>
                         </Border>
                     </StackPanel>
 
@@ -762,13 +777,10 @@
                         <StackPanel Grid.Column="0"
                                     VerticalAlignment="Center"
                                     Margin="0,0,12,0">
-                            <TextBlock Text="Clickty"
-                                       FontSize="22"
-                                       FontFamily="/CLCKTY.App;component/Assets/Fonts/#Splatink PERSONAL USE"
-                                       Foreground="{StaticResource TextPrimaryBrush}" />
                             <TextBlock Text="Typing Performance Dashboard"
                                        Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="10" />
+                                   FontSize="11"
+                                   FontWeight="SemiBold" />
                         </StackPanel>
 
                         <Border Grid.Column="1"
@@ -844,6 +856,7 @@
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="16,14,16,16">
+                        <StackPanel x:Name="DashboardSectionPanel">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="2*" />
@@ -1090,7 +1103,7 @@
                                         </Button>
                                     </Grid>
 
-                                    <TextBlock Text="Add left, right, middle, or side-button sound mappings."
+                                    <TextBlock Text="Click an input field, then click a mouse button to capture mapping."
                                                Foreground="#8DC4AE"
                                                FontSize="11"
                                                Margin="0,4,0,10"
@@ -1126,6 +1139,304 @@
                                            TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
+                        </StackPanel>
+
+                        <StackPanel x:Name="SoundProfilesSectionPanel"
+                                    Visibility="Collapsed">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0"
+                                        Background="#151E1B"
+                                        BorderBrush="#27483D"
+                                        BorderThickness="1"
+                                        CornerRadius="12"
+                                        Padding="14">
+                                    <StackPanel>
+                                        <TextBlock Text="Sound Profiles"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="18" />
+                                        <TextBlock Text="Import packs, switch active profile, and manage imported sources."
+                                                   Foreground="#8DC4AE"
+                                                   FontSize="11"
+                                                   Margin="0,4,0,10"
+                                                   TextWrapping="Wrap" />
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <ComboBox ItemsSource="{Binding Profiles}"
+                                                      SelectedItem="{Binding SelectedProfile}"
+                                                      ItemTemplate="{StaticResource ProfileItemTemplate}"
+                                                      MinHeight="38"
+                                                      Padding="10,6,84,6"
+                                                      Margin="0,0,8,0" />
+
+                                            <Button Grid.Column="1"
+                                                    Width="38"
+                                                    Height="38"
+                                                    ToolTip="Import pack"
+                                                    Command="{Binding ImportSoundPackCommand}"
+                                                    Style="{StaticResource GlowButtonStyle}"
+                                                    Padding="0">
+                                                <TextBlock Text="+"
+                                                           FontSize="18"
+                                                           FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" />
+                                            </Button>
+                                        </Grid>
+
+                                        <TextBlock Text="Available Profiles"
+                                                   Margin="0,12,0,8"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold" />
+
+                                        <Border Background="#111917"
+                                                BorderBrush="#27483D"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="8">
+                                            <ScrollViewer MaxHeight="300"
+                                                          VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled">
+                                                <ItemsControl ItemsSource="{Binding Profiles}"
+                                                              ItemTemplate="{StaticResource ProfileItemTemplate}" />
+                                            </ScrollViewer>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2"
+                                        Background="#111917"
+                                        BorderBrush="#27483D"
+                                        BorderThickness="1"
+                                        CornerRadius="12"
+                                        Padding="12">
+                                    <StackPanel>
+                                        <TextBlock Text="Live Activity"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="Inspired by Mechvibes system logs"
+                                                   Foreground="#8DC4AE"
+                                                   FontSize="11"
+                                                   Margin="0,4,0,10" />
+
+                                        <Border Background="#172320"
+                                                BorderBrush="#2A5647"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="8">
+                                            <ScrollViewer Height="330"
+                                                          VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled">
+                                                <ItemsControl ItemsSource="{Binding ActivityFeed}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding}"
+                                                                       FontFamily="Consolas"
+                                                                       Foreground="#CFECE0"
+                                                                       FontSize="11"
+                                                                       Margin="0,0,0,6"
+                                                                       TextWrapping="Wrap" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel x:Name="KeyMappingsSectionPanel"
+                                    Visibility="Collapsed">
+                            <Border Background="#151E1B"
+                                    BorderBrush="#27483D"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="14">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel>
+                                            <TextBlock Text="Key Mappings"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="18" />
+                                            <TextBlock Text="Detailed keyboard mapping controls"
+                                                       Foreground="#8DC4AE"
+                                                       FontSize="11"
+                                                       Margin="0,4,0,0" />
+                                        </StackPanel>
+
+                                        <Button Grid.Column="1"
+                                                Command="{Binding AddKeyboardMappingCommand}"
+                                                ToolTip="Add keyboard mapping"
+                                                Width="34"
+                                                Height="34"
+                                                Margin="8,0,0,0"
+                                                Style="{StaticResource GlowButtonStyle}"
+                                                Padding="0">
+                                            <TextBlock FontFamily="Segoe MDL2 Assets"
+                                                       Text="&#xE710;"
+                                                       FontSize="13"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Button>
+
+                                        <Button Grid.Column="2"
+                                                Content="Clear"
+                                                Command="{Binding ClearMappingsCommand}"
+                                                Margin="8,0,0,0"
+                                                MinHeight="34"
+                                                Style="{StaticResource GlowButtonStyle}" />
+                                    </Grid>
+
+                                    <TextBlock Text="Click a key cell to capture a new keyboard input."
+                                               Foreground="#8DC4AE"
+                                               FontSize="11"
+                                               Margin="0,8,0,10"
+                                               TextWrapping="Wrap" />
+
+                                    <ItemsControl ItemsSource="{Binding KeyboardMappings}"
+                                                  ItemTemplate="{StaticResource MappingRowTemplate}" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Margin="0,12,0,0"
+                                    Background="#111917"
+                                    BorderBrush="#27483D"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="Recent Activity"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               FontWeight="SemiBold" />
+                                    <ScrollViewer Height="170"
+                                                  Margin="0,8,0,0"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsControl ItemsSource="{Binding ActivityFeed}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}"
+                                                               FontFamily="Consolas"
+                                                               Foreground="#CFECE0"
+                                                               FontSize="11"
+                                                               Margin="0,0,0,6"
+                                                               TextWrapping="Wrap" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel x:Name="MouseSettingsSectionPanel"
+                                    Visibility="Collapsed">
+                            <Border Background="#151E1B"
+                                    BorderBrush="#27483D"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="14">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel>
+                                            <TextBlock Text="Mouse Settings"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="18" />
+                                            <TextBlock Text="Detailed mouse mapping controls"
+                                                       Foreground="#8DC4AE"
+                                                       FontSize="11"
+                                                       Margin="0,4,0,0" />
+                                        </StackPanel>
+
+                                        <Button Grid.Column="1"
+                                                Command="{Binding AddMouseMappingCommand}"
+                                                ToolTip="Add mouse mapping"
+                                                Width="34"
+                                                Height="34"
+                                                Margin="8,0,0,0"
+                                                Style="{StaticResource GlowButtonStyle}"
+                                                Padding="0">
+                                            <TextBlock FontFamily="Segoe MDL2 Assets"
+                                                       Text="&#xE710;"
+                                                       FontSize="13"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Button>
+
+                                        <ToggleButton Grid.Column="2"
+                                                      Margin="12,3,0,0"
+                                                      VerticalAlignment="Top"
+                                                      Style="{StaticResource SwitchStyle}"
+                                                      IsChecked="{Binding IsMouseSoundEnabled, Mode=TwoWay}" />
+                                    </Grid>
+
+                                    <TextBlock Text="Click a mapping input, then click any mouse button to capture it."
+                                               Foreground="#8DC4AE"
+                                               FontSize="11"
+                                               Margin="0,8,0,10"
+                                               TextWrapping="Wrap" />
+
+                                    <ItemsControl ItemsSource="{Binding MouseMappings}"
+                                                  ItemTemplate="{StaticResource MappingRowTemplate}" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Margin="0,12,0,0"
+                                    Background="#111917"
+                                    BorderBrush="#27483D"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="Recent Activity"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               FontWeight="SemiBold" />
+                                    <ScrollViewer Height="170"
+                                                  Margin="0,8,0,0"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsControl ItemsSource="{Binding ActivityFeed}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}"
+                                                               FontFamily="Consolas"
+                                                               Foreground="#CFECE0"
+                                                               FontSize="11"
+                                                               Margin="0,0,0,6"
+                                                               TextWrapping="Wrap" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
