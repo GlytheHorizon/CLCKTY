@@ -92,20 +92,33 @@ public partial class MainWindow : Window
 
     private void InfoButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_infoWindow is null || !_infoWindow.IsLoaded)
+        try
         {
-            _infoWindow = new InfoWindow
+            if (_infoWindow is null || !_infoWindow.IsLoaded)
             {
-                Owner = this
-            };
-        }
+                _infoWindow = new InfoWindow
+                {
+                    Owner = this
+                };
+            }
 
-        if (!_infoWindow.IsVisible)
+            if (!_infoWindow.IsVisible)
+            {
+                _infoWindow.Show();
+            }
+
+            _infoWindow.Activate();
+        }
+        catch (Exception ex)
         {
-            _infoWindow.Show();
+            _infoWindow = null;
+            System.Diagnostics.Debug.WriteLine($"Failed to open InfoWindow: {ex}");
+            System.Windows.MessageBox.Show(this,
+                "Unable to open Information window due to an invalid UI setting. It has been prevented from shutting down the app.",
+                "Information Window Error",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
         }
-
-        _infoWindow.Activate();
     }
 
     private void DeleteClipOptionButton_Click(object sender, RoutedEventArgs e)

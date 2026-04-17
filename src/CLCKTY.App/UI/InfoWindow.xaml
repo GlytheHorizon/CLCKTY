@@ -65,6 +65,52 @@
             <Setter Property="Background" Value="#12392C" />
             <Setter Property="BorderBrush" Value="#2A6A53" />
         </Style>
+
+        <Style x:Key="InfoScrollThumbStyle" TargetType="Thumb">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="#2AAE79"
+                                BorderBrush="#43D79D"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Margin="1" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="InfoScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Width" Value="12" />
+            <Setter Property="Background" Value="#0E1C17" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="1">
+                            <Track x:Name="PART_Track"
+                                   IsDirectionReversed="True"
+                                   Focusable="False">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand"
+                                                  Opacity="0"
+                                                  IsTabStop="False" />
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource InfoScrollThumbStyle}" />
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand"
+                                                  Opacity="0"
+                                                  IsTabStop="False" />
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border CornerRadius="18"
@@ -110,6 +156,10 @@
             <ScrollViewer Grid.Row="2"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar"
+                           BasedOn="{StaticResource InfoScrollBarStyle}" />
+                </ScrollViewer.Resources>
                 <StackPanel>
                     <Border Background="{StaticResource CardBackgroundBrush}"
                             BorderBrush="{StaticResource CardBorderBrush}"
@@ -135,10 +185,10 @@
                                        Text="Developed by Jerwin Cruz"
                                        Foreground="{StaticResource TextPrimaryBrush}" />
                             <TextBlock Margin="0,4,0,0"
-                                    Text="Inspired by Keeby by Adrian Angelo Abelarde (Keeby)"
+                                    Text="Inspired by Adrian Angelo Abelarde (Keeby)"
                                     Foreground="{StaticResource TextSecondaryBrush}"
                                     TextWrapping="Wrap" />
-                            <Grid Margin="18,0,0,0">
+                            <Grid Margin="0,0,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -147,6 +197,7 @@
                                 <TextBlock Text="Hai Nguyen (Mechvibes)"
                                            Foreground="{StaticResource TextSecondaryBrush}"
                                            TextWrapping="Wrap"
+                                           HorizontalAlignment="Left"
                                            VerticalAlignment="Center" />
 
                                 <Button Grid.Column="1"
