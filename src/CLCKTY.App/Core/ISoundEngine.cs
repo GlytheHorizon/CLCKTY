@@ -12,11 +12,13 @@ public interface ISoundEngine : IDisposable
 
     IReadOnlyList<SoundClipDescriptor> GetClipOptions();
 
+    IReadOnlyList<InputMappingDescriptor> GetMappings();
+
     void SetActiveProfile(string profileId);
 
-    void SetKeyMapping(int virtualKey, string? clipId);
+    void SetKeyMapping(int virtualKey, string? clipId, KeyEventTrigger trigger = KeyEventTrigger.Down);
 
-    string? GetKeyMapping(int virtualKey);
+    string? GetKeyMapping(int virtualKey, KeyEventTrigger trigger = KeyEventTrigger.Down);
 
     void ClearMappings();
 
@@ -25,4 +27,6 @@ public interface ISoundEngine : IDisposable
     void ReleaseForKey(int virtualKey);
 
     Task<string?> ImportSoundPackAsync(string folderPath, CancellationToken cancellationToken = default);
+
+    Task<string?> ImportAudioClipAsync(string filePath, CancellationToken cancellationToken = default);
 }

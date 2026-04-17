@@ -32,7 +32,7 @@ public sealed class SoundEngine : ISoundEngine
     private readonly MixingSampleProvider _mixer;
     private readonly Dictionary<string, LoadedSoundProfile> _profiles =
         new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<int, string> _keyMappings = new();
+    private readonly Dictionary<(int virtualKey, KeyEventTrigger trigger), string> _keyMappings = new();
     private readonly HashSet<int> _heldKeys = new();
     private readonly Dictionary<int, CachedSound> _pendingSecondHalf = new();
 
@@ -141,6 +141,18 @@ public sealed class SoundEngine : ISoundEngine
         }
     }
 
+    public IReadOnlyList<InputMappingDescriptor> GetMappings()
+    {
+        lock (_sync)
+        {
+            ThrowIfDisposed();
+
+            return _keyMappings
+                .Select(mapping => new InputMappingDescriptor(mapping.Key.virtualKey, mapping.Key.trigger, mapping.Value))
+                .ToList();
+        }
+    }
+
     public void SetActiveProfile(string profileId)
     {
         if (string.IsNullOrWhiteSpace(profileId))
@@ -159,28 +171,30 @@ public sealed class SoundEngine : ISoundEngine
         }
     }
 
-    public void SetKeyMapping(int virtualKey, string? clipId)
+    public void SetKeyMapping(int virtualKey, string? clipId, KeyEventTrigger trigger = KeyEventTrigger.Down)
     {
         lock (_sync)
         {
             ThrowIfDisposed();
+
+            var key = (virtualKey, trigger);
 
             if (string.IsNullOrWhiteSpace(clipId))
             {
-                _keyMappings.Remove(virtualKey);
+                _keyMappings.Remove(key);
                 return;
             }
 
-            _keyMappings[virtualKey] = clipId;
+            _keyMappings[key] = clipId;
         }
     }
 
-    public string? GetKeyMapping(int virtualKey)
+    public string? GetKeyMapping(int virtualKey, KeyEventTrigger trigger = KeyEventTrigger.Down)
     {
         lock (_sync)
         {
             ThrowIfDisposed();
-            return _keyMappings.TryGetValue(virtualKey, out var clipId) ? clipId : null;
+            return _keyMappings.TryGetValue((virtualKey, trigger), out var clipId) ? clipId : null;
         }
     }
 
@@ -206,7 +220,7 @@ public sealed class SoundEngine : ISoundEngine
                 return;
             }
 
-            var clipId = ResolveClipForKey(profile, virtualKey);
+            var clipId = ResolveClipForKey(profile, virtualKey, KeyEventTrigger.Down);
             if (!profile.Clips.TryGetValue(clipId, out clip))
             {
                 clip = profile.Clips[profile.DefaultClipId];
@@ -249,7 +263,7 @@ public sealed class SoundEngine : ISoundEngine
                 return;
             }
 
-            var clipId = ResolveClipForKey(profile, virtualKey);
+            var clipId = ResolveClipForKey(profile, virtualKey, KeyEventTrigger.Down);
             if (!profile.Clips.TryGetValue(clipId, out clip))
             {
                 clip = profile.Clips[profile.DefaultClipId];
@@ -296,6 +310,8 @@ public sealed class SoundEngine : ISoundEngine
     public void ReleaseForKey(int virtualKey)
     {
         CachedSound? second = null;
+        LoadedSoundProfile? profile = null;
+        SoundClip? mappedClip = null;
 
         lock (_sync)
         {
@@ -304,20 +320,44 @@ public sealed class SoundEngine : ISoundEngine
                 return;
             }
 
-            if (_pendingSecondHalf.TryGetValue(virtualKey, out var cached))
+            if (_profiles.TryGetValue(_activeProfileId, out profile))
+            {
+                // check if user mapped an explicit clip for Up events
+                if (_keyMappings.TryGetValue((virtualKey, KeyEventTrigger.Up), out var upClipId) && profile.Clips.TryGetValue(upClipId, out var upClip))
+                {
+                    mappedClip = upClip;
+                }
+            }
+
+            if (mappedClip is null && _pendingSecondHalf.TryGetValue(virtualKey, out var cached))
             {
                 second = cached;
                 _pendingSecondHalf.Remove(virtualKey);
             }
         }
 
-        if (second is null)
-        {
-            return;
-        }
-
         try
         {
+            if (mappedClip is not null)
+            {
+                var providerMapped = new VolumeSampleProvider(new CachedSoundSampleProvider(mappedClip.Sound)) { Volume = _masterVolume };
+                lock (_sync)
+                {
+                    if (_disposed)
+                    {
+                        return;
+                    }
+
+                    _mixer.AddMixerInput(providerMapped);
+                }
+                return;
+            }
+
+            if (second is null)
+            {
+                return;
+            }
+
             var provider = new VolumeSampleProvider(new CachedSoundSampleProvider(second)) { Volume = _masterVolume };
             lock (_sync)
             {
@@ -359,6 +399,54 @@ public sealed class SoundEngine : ISoundEngine
         return imported.Id;
     }
 
+    public async Task<string?> ImportAudioClipAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        {
+            return null;
+        }
+
+        var importedClip = await Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var fileName = Path.GetFileNameWithoutExtension(filePath);
+            var clipIdSeed = NormalizeToken(fileName);
+            var clipDisplayName = ToDisplayName(fileName);
+            var clipSound = LoadCachedSoundFromFile(filePath);
+
+            return new SoundClip(clipIdSeed, clipDisplayName, clipSound);
+        }, cancellationToken).ConfigureAwait(false);
+
+        lock (_sync)
+        {
+            ThrowIfDisposed();
+
+            if (!_profiles.TryGetValue(_activeProfileId, out var activeProfile))
+            {
+                return null;
+            }
+
+            var newClips = activeProfile.Clips.Values
+                .ToDictionary(clip => clip.Id, clip => clip, StringComparer.OrdinalIgnoreCase);
+
+            var uniqueClipId = EnsureUniqueClipId(newClips.Keys, importedClip.Id);
+            var updatedClip = new SoundClip(uniqueClipId, importedClip.DisplayName, importedClip.Sound);
+            newClips[uniqueClipId] = updatedClip;
+
+            var updatedProfile = new LoadedSoundProfile(
+                activeProfile.Id,
+                activeProfile.DisplayName,
+                activeProfile.DefaultClipId,
+                newClips,
+                activeProfile.DefaultKeyClips,
+                activeProfile.IsImported);
+
+            _profiles[updatedProfile.Id] = updatedProfile;
+            return uniqueClipId;
+        }
+    }
+
     public void Dispose()
     {
         lock (_sync)
@@ -380,17 +468,17 @@ public sealed class SoundEngine : ISoundEngine
             .Select(clip => new SoundClipDescriptor(clip.Id, clip.DisplayName))
             .ToList();
 
-        return new SoundProfileDescriptor(profile.Id, profile.DisplayName, clips);
+        return new SoundProfileDescriptor(profile.Id, profile.DisplayName, clips, profile.IsImported);
     }
 
-    private string ResolveClipForKey(LoadedSoundProfile profile, int virtualKey)
+    private string ResolveClipForKey(LoadedSoundProfile profile, int virtualKey, KeyEventTrigger trigger)
     {
-        if (_keyMappings.TryGetValue(virtualKey, out var mappedClipId) && profile.Clips.ContainsKey(mappedClipId))
+        if (_keyMappings.TryGetValue((virtualKey, trigger), out var mappedClipId) && profile.Clips.ContainsKey(mappedClipId))
         {
             return mappedClipId;
         }
 
-        if (profile.DefaultKeyClips.TryGetValue(virtualKey, out var profileClipId) && profile.Clips.ContainsKey(profileClipId))
+        if (trigger == KeyEventTrigger.Down && profile.DefaultKeyClips.TryGetValue(virtualKey, out var profileClipId) && profile.Clips.ContainsKey(profileClipId))
         {
             return profileClipId;
         }
@@ -426,21 +514,24 @@ public sealed class SoundEngine : ISoundEngine
             "Neon Blue",
             "default",
             neonClips,
-            CreateDefaultKeyMap());
+            CreateDefaultKeyMap(),
+            false);
 
         _profiles["stealth-black"] = new LoadedSoundProfile(
             "stealth-black",
             "Stealth Black",
             "default",
             stealthClips,
-            CreateDefaultKeyMap());
+            CreateDefaultKeyMap(),
+            false);
 
         _profiles["crystal-violet"] = new LoadedSoundProfile(
             "crystal-violet",
             "Crystal Violet",
             "default",
             crystalClips,
-            CreateDefaultKeyMap());
+            CreateDefaultKeyMap(),
+            false);
     }
 
     private static IReadOnlyDictionary<int, string> CreateDefaultKeyMap()
@@ -538,7 +629,8 @@ public sealed class SoundEngine : ISoundEngine
             $"{ToDisplayName(folderName)} (Custom)",
             defaultClipId,
             clips,
-            CreateDefaultKeyMap());
+            CreateDefaultKeyMap(),
+            true);
     }
 
     private static LoadedSoundProfile? LoadProfileFromConfig(string folderPath, string configPath, CancellationToken cancellationToken)
@@ -642,7 +734,8 @@ public sealed class SoundEngine : ISoundEngine
             $"{displayName} (Imported)",
             defaultClipId,
             clips,
-            keyMap.Count > 0 ? keyMap : new Dictionary<int, string>());
+            keyMap.Count > 0 ? keyMap : new Dictionary<int, string>(),
+            true);
     }
 
     private static CachedSound LoadCachedSoundFromFile(string filePath)
@@ -895,6 +988,30 @@ public sealed class SoundEngine : ISoundEngine
         return string.IsNullOrWhiteSpace(token) ? "clip" : token;
     }
 
+    private static string EnsureUniqueClipId(IEnumerable<string> existingClipIds, string preferredId)
+    {
+        var used = new HashSet<string>(existingClipIds, StringComparer.OrdinalIgnoreCase);
+        var sanitized = NormalizeToken(preferredId);
+
+        if (!used.Contains(sanitized))
+        {
+            return sanitized;
+        }
+
+        var suffix = 2;
+
+        while (true)
+        {
+            var candidate = $"{sanitized}{suffix}";
+            if (!used.Contains(candidate))
+            {
+                return candidate;
+            }
+
+            suffix++;
+        }
+    }
+
     private static string ToDisplayName(string token)
     {
         if (string.IsNullOrWhiteSpace(token))
@@ -954,13 +1071,15 @@ public sealed class SoundEngine : ISoundEngine
             string displayName,
             string defaultClipId,
             IReadOnlyDictionary<string, SoundClip> clips,
-            IReadOnlyDictionary<int, string> defaultKeyClips)
+            IReadOnlyDictionary<int, string> defaultKeyClips,
+            bool isImported)
         {
             Id = id;
             DisplayName = displayName;
             DefaultClipId = defaultClipId;
             Clips = clips;
             DefaultKeyClips = defaultKeyClips;
+            IsImported = isImported;
         }
 
         public string Id { get; }
@@ -972,6 +1091,8 @@ public sealed class SoundEngine : ISoundEngine
         public IReadOnlyDictionary<string, SoundClip> Clips { get; }
 
         public IReadOnlyDictionary<int, string> DefaultKeyClips { get; }
+
+        public bool IsImported { get; }
     }
 
     private sealed class SoundClip

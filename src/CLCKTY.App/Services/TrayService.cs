@@ -1,4 +1,6 @@
 using System.Drawing;
+using System.IO;
+using System.Runtime.InteropServices;
 using Forms = System.Windows.Forms;
 
 namespace CLCKTY.App.Services;
@@ -9,6 +11,8 @@ public sealed class TrayService : IDisposable
     private readonly Forms.ToolStripMenuItem _toggleMenuItem;
     private bool _isSoundEnabled = true;
     private bool _disposed;
+    private System.Drawing.Icon? _customIcon;
+    private IntPtr _customIconHandle;
 
     public TrayService()
     {
@@ -38,6 +42,41 @@ public sealed class TrayService : IDisposable
             Visible = true,
             ContextMenuStrip = menu
         };
+
+        // Prefer an ICO file for the tray icon: Assets/Icons/clckty.ico
+        try
+        {
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var icoPath = Path.Combine(baseDir, "Assets", "Icons", "clckty.ico");
+            var pngPath = Path.Combine(baseDir, "Assets", "Icons", "clckty-app.png");
+
+            if (File.Exists(icoPath))
+            {
+                // load .ico directly
+                try
+                {
+                    var ico = new System.Drawing.Icon(icoPath);
+                    _notifyIcon.Icon = ico;
+                    // keep a reference so it gets disposed with the notify icon
+                    _customIcon = ico;
+                }
+                catch
+                {
+                    // fall back to png below
+                }
+            }
+            else if (File.Exists(pngPath))
+            {
+                using var bmp = new System.Drawing.Bitmap(pngPath);
+                _customIconHandle = bmp.GetHicon();
+                _customIcon = System.Drawing.Icon.FromHandle(_customIconHandle);
+                _notifyIcon.Icon = _customIcon;
+            }
+        }
+        catch
+        {
+            // ignore and fall back to default icon
+        }
 
         _notifyIcon.MouseClick += OnNotifyIconMouseClick;
 
@@ -75,8 +114,21 @@ public sealed class TrayService : IDisposable
         _notifyIcon.MouseClick -= OnNotifyIconMouseClick;
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+        if (_customIcon is not null)
+        {
+            _customIcon.Dispose();
+        }
+
+        if (_customIconHandle != IntPtr.Zero)
+        {
+            DestroyIcon(_customIconHandle);
+            _customIconHandle = IntPtr.Zero;
+        }
         _disposed = true;
     }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
 
     private void OnNotifyIconMouseClick(object? sender, Forms.MouseEventArgs e)
     {

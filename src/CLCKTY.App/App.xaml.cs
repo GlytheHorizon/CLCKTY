@@ -42,6 +42,8 @@ public partial class App : Wpf.Application
 
 		_keyboardHookService.KeyDown += KeyboardHookService_KeyDown;
 		_keyboardHookService.KeyUp += KeyboardHookService_KeyUp;
+		_keyboardHookService.MouseDown += KeyboardHookService_MouseDown;
+		_keyboardHookService.MouseUp += KeyboardHookService_MouseUp;
 		_keyboardHookService.Start();
 
 		var launchInTray = e.Args.Any(arg => string.Equals(arg, "--tray", StringComparison.OrdinalIgnoreCase));
@@ -59,12 +61,42 @@ public partial class App : Wpf.Application
 
 	private void KeyboardHookService_KeyDown(object? sender, GlobalKeyPressedEventArgs e)
 	{
+		if (_mainViewModel is null || !_mainViewModel.IsKeyboardSoundEnabled)
+		{
+			return;
+		}
+
 		_soundEngine?.StartHoldForKey(e.VirtualKey);
 	}
 
 	private void KeyboardHookService_KeyUp(object? sender, GlobalKeyPressedEventArgs e)
 	{
+		if (_mainViewModel is null || !_mainViewModel.IsKeyboardSoundEnabled)
+		{
+			return;
+		}
+
 		_soundEngine?.ReleaseForKey(e.VirtualKey);
+	}
+
+	private void KeyboardHookService_MouseDown(object? sender, GlobalMouseButtonEventArgs e)
+	{
+		if (_mainViewModel is null || !_mainViewModel.IsMouseSoundEnabled)
+		{
+			return;
+		}
+
+		_soundEngine?.StartHoldForKey(e.InputCode);
+	}
+
+	private void KeyboardHookService_MouseUp(object? sender, GlobalMouseButtonEventArgs e)
+	{
+		if (_mainViewModel is null || !_mainViewModel.IsMouseSoundEnabled)
+		{
+			return;
+		}
+
+		_soundEngine?.ReleaseForKey(e.InputCode);
 	}
 
 	private void MainViewModel_SoundEnabledChanged(object? sender, bool isEnabled)
@@ -166,6 +198,8 @@ public partial class App : Wpf.Application
 		{
 			_keyboardHookService.KeyDown -= KeyboardHookService_KeyDown;
 			_keyboardHookService.KeyUp -= KeyboardHookService_KeyUp;
+			_keyboardHookService.MouseDown -= KeyboardHookService_MouseDown;
+			_keyboardHookService.MouseUp -= KeyboardHookService_MouseUp;
 			_keyboardHookService.Dispose();
 			_keyboardHookService = null;
 		}
