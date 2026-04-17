@@ -9,6 +9,7 @@ public sealed class KeyMappingRowViewModel : ViewModelBase
     private string? _selectedClipId;
     private KeyEventTrigger _mappingTrigger;
     private bool _suppressMappingChanged;
+    private bool _isCapturingInput;
 
     public KeyMappingRowViewModel(
         IEnumerable<KeyMappingInputOption> inputOptions,
@@ -51,8 +52,27 @@ public sealed class KeyMappingRowViewModel : ViewModelBase
     {
         get
         {
+            if (IsCapturingInput)
+            {
+                return "Press any key...";
+            }
+
             var option = InputOptions.FirstOrDefault(item => item.Code == InputCode);
             return option?.DisplayName ?? $"Code 0x{InputCode:X2}";
+        }
+    }
+
+    public bool IsCapturingInput
+    {
+        get => _isCapturingInput;
+        set
+        {
+            if (!SetProperty(ref _isCapturingInput, value))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(InputLabel));
         }
     }
 
@@ -82,9 +102,27 @@ public sealed class KeyMappingRowViewModel : ViewModelBase
                 return;
             }
 
+            NotifyClipPropertiesChanged();
+
             RaiseMappingChanged();
         }
     }
+
+    public string SelectedClipDisplayName
+    {
+        get
+        {
+            if (SelectedClipId is null)
+            {
+                return "Default";
+            }
+
+            return Options.FirstOrDefault(option => string.Equals(option.Id, SelectedClipId, StringComparison.OrdinalIgnoreCase))?.DisplayName
+                ?? SelectedClipId;
+        }
+    }
+
+    public string AudioButtonLabel => $"Audio: {SelectedClipDisplayName}";
 
     public event EventHandler? MappingChanged;
 
@@ -109,6 +147,8 @@ public sealed class KeyMappingRowViewModel : ViewModelBase
             {
                 SelectedClipId = null;
             }
+
+            NotifyClipPropertiesChanged();
         }
         finally
         {
@@ -130,5 +170,11 @@ public sealed class KeyMappingRowViewModel : ViewModelBase
         }
 
         MappingChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void NotifyClipPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(SelectedClipDisplayName));
+        OnPropertyChanged(nameof(AudioButtonLabel));
     }
 }

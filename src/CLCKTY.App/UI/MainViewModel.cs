@@ -9,11 +9,15 @@ namespace CLCKTY.App.UI;
 
 public sealed class MainViewModel : ViewModelBase
 {
+    private const KeyEventTrigger DefaultMappingTrigger = KeyEventTrigger.Down;
+
     private readonly ISoundEngine _soundEngine;
     private readonly StartupService _startupService;
     private readonly IReadOnlyList<KeyMappingInputOption> _keyboardInputOptions;
     private readonly IReadOnlyList<KeyMappingInputOption> _mouseInputOptions;
     private readonly Dictionary<KeyMappingRowViewModel, (int inputCode, KeyEventTrigger trigger)> _rowBindings = new();
+    private bool _isSynchronizingMappings;
+    private KeyMappingRowViewModel? _capturingKeyboardRow;
 
     private SoundProfileDescriptor? _selectedProfile;
     private bool _isEnabled;
@@ -44,10 +48,12 @@ public sealed class MainViewModel : ViewModelBase
         ImportSoundPackCommand = new RelayCommand(_ => _ = ImportSoundPackAsync(), _ => !IsImportingPack);
         AddKeyboardMappingCommand = new RelayCommand(_ => AddKeyboardMapping());
         AddMouseMappingCommand = new RelayCommand(_ => AddMouseMapping());
+        CaptureKeyboardInputCommand = new RelayCommand(parameter => BeginKeyboardCapture(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel row && !row.IsMouseMapping);
         RemoveMappingCommand = new RelayCommand(parameter => RemoveMapping(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel);
         ImportMappingAudioCommand = new RelayCommand(parameter => _ = ImportMappingAudioAsync(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel && !IsImportingClip);
         ClearMappingsCommand = new RelayCommand(_ => ClearMappings());
 
+        RemoveLegacyUpMappings();
         BuildMappingRows();
         LoadProfiles(_soundEngine.ActiveProfileId);
 
@@ -67,6 +73,8 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand AddKeyboardMappingCommand { get; }
 
     public ICommand AddMouseMappingCommand { get; }
+
+    public ICommand CaptureKeyboardInputCommand { get; }
 
     public ICommand RemoveMappingCommand { get; }
 
@@ -210,10 +218,15 @@ public sealed class MainViewModel : ViewModelBase
         KeyboardMappings.Clear();
         MouseMappings.Clear();
 
-        foreach (var mapping in _soundEngine.GetMappings())
+        var normalizedMappings = _soundEngine.GetMappings()
+            .GroupBy(mapping => mapping.InputCode)
+            .Select(group => group.FirstOrDefault(mapping => mapping.Trigger == DefaultMappingTrigger) ?? group.First())
+            .ToList();
+
+        foreach (var mapping in normalizedMappings)
         {
             var isMouseMapping = InputBindingCode.IsMouseCode(mapping.InputCode);
-            var row = CreateMappingRow(isMouseMapping, mapping.InputCode, mapping.Trigger, mapping.ClipId);
+            var row = CreateMappingRow(isMouseMapping, mapping.InputCode, DefaultMappingTrigger, mapping.ClipId);
             GetCollection(isMouseMapping).Add(row);
         }
 
@@ -262,16 +275,16 @@ public sealed class MainViewModel : ViewModelBase
     private void AddKeyboardMapping()
     {
         var nextCode = GetNextAvailableCode(KeyboardMappings, _keyboardInputOptions);
-        var row = CreateMappingRow(false, nextCode);
+        var row = CreateMappingRow(false, nextCode, DefaultMappingTrigger);
         KeyboardMappings.Add(row);
         UpdateMappingOptions();
-        StatusText = "Added keyboard mapping row.";
+        BeginKeyboardCapture(row);
     }
 
     private void AddMouseMapping()
     {
         var nextCode = GetNextAvailableCode(MouseMappings, _mouseInputOptions);
-        var row = CreateMappingRow(true, nextCode);
+        var row = CreateMappingRow(true, nextCode, DefaultMappingTrigger);
         MouseMappings.Add(row);
         UpdateMappingOptions();
         StatusText = "Added mouse mapping row.";
@@ -285,11 +298,25 @@ public sealed class MainViewModel : ViewModelBase
         return options.FirstOrDefault(option => !used.Contains(option.Code))?.Code ?? options[0].Code;
     }
 
+    private void RemoveLegacyUpMappings()
+    {
+        foreach (var mapping in _soundEngine.GetMappings().Where(mapping => mapping.Trigger == KeyEventTrigger.Up))
+        {
+            _soundEngine.SetKeyMapping(mapping.InputCode, null, KeyEventTrigger.Up);
+        }
+    }
+
     private void RemoveMapping(KeyMappingRowViewModel? row)
     {
         if (row is null)
         {
             return;
+        }
+
+        if (ReferenceEquals(_capturingKeyboardRow, row))
+        {
+            _capturingKeyboardRow.IsCapturingInput = false;
+            _capturingKeyboardRow = null;
         }
 
         if (_rowBindings.TryGetValue(row, out var previousBinding))
@@ -298,7 +325,7 @@ public sealed class MainViewModel : ViewModelBase
             _rowBindings.Remove(row);
         }
 
-        _soundEngine.SetKeyMapping(row.InputCode, null, row.MappingTrigger);
+        _soundEngine.SetKeyMapping(row.InputCode, null, DefaultMappingTrigger);
         row.MappingChanged -= OnMappingChanged;
 
         var collection = GetCollection(row.IsMouseMapping);
@@ -310,10 +337,43 @@ public sealed class MainViewModel : ViewModelBase
         if (collection.Count == 0)
         {
             var seedCode = row.IsMouseMapping ? _mouseInputOptions[0].Code : _keyboardInputOptions[0].Code;
-            collection.Add(CreateMappingRow(row.IsMouseMapping, seedCode));
+            collection.Add(CreateMappingRow(row.IsMouseMapping, seedCode, DefaultMappingTrigger));
         }
 
         StatusText = $"Removed mapping for {row.InputLabel}.";
+    }
+
+    public bool TryCaptureKeyboardInput(int virtualKey)
+    {
+        if (_capturingKeyboardRow is null)
+        {
+            return false;
+        }
+
+        var row = _capturingKeyboardRow;
+        _capturingKeyboardRow = null;
+
+        row.IsCapturingInput = false;
+        row.InputCode = virtualKey;
+        StatusText = $"Captured key: {row.InputLabel}.";
+        return true;
+    }
+
+    private void BeginKeyboardCapture(KeyMappingRowViewModel? row)
+    {
+        if (row is null || row.IsMouseMapping)
+        {
+            return;
+        }
+
+        if (_capturingKeyboardRow is not null)
+        {
+            _capturingKeyboardRow.IsCapturingInput = false;
+        }
+
+        _capturingKeyboardRow = row;
+        row.IsCapturingInput = true;
+        StatusText = "Press a key to set this mapping input.";
     }
 
     private void LoadProfiles(string preferredProfileId)
@@ -354,30 +414,41 @@ public sealed class MainViewModel : ViewModelBase
 
             if (previousClipId is not null && row.SelectedClipId is null)
             {
-                _soundEngine.SetKeyMapping(row.InputCode, null, row.MappingTrigger);
+                _soundEngine.SetKeyMapping(row.InputCode, null, DefaultMappingTrigger);
             }
         }
     }
 
     private void OnMappingChanged(object? sender, EventArgs e)
     {
-        if (sender is not KeyMappingRowViewModel row)
+        if (_isSynchronizingMappings || sender is not KeyMappingRowViewModel row)
         {
             return;
         }
 
+        if (row.MappingTrigger != DefaultMappingTrigger)
+        {
+            row.MappingTrigger = DefaultMappingTrigger;
+            return;
+        }
+
         if (_rowBindings.TryGetValue(row, out var previousBinding)
-            && (previousBinding.inputCode != row.InputCode || previousBinding.trigger != row.MappingTrigger))
+            && (previousBinding.inputCode != row.InputCode || previousBinding.trigger != DefaultMappingTrigger))
         {
             _soundEngine.SetKeyMapping(previousBinding.inputCode, null, previousBinding.trigger);
         }
 
-        _soundEngine.SetKeyMapping(row.InputCode, row.SelectedClipId, row.MappingTrigger);
-        _rowBindings[row] = (row.InputCode, row.MappingTrigger);
+        _soundEngine.SetKeyMapping(row.InputCode, row.SelectedClipId, DefaultMappingTrigger);
+        _rowBindings[row] = (row.InputCode, DefaultMappingTrigger);
+
+        if (row.SelectedClipId is not null)
+        {
+            RemoveDuplicateCustomMappings(row);
+        }
 
         if (row.SelectedClipId is null)
         {
-            StatusText = $"{row.InputLabel} ({row.MappingTrigger}): default clip.";
+            StatusText = $"{row.InputLabel}: default clip.";
             return;
         }
 
@@ -386,11 +457,44 @@ public sealed class MainViewModel : ViewModelBase
             ?.DisplayName
             ?? row.SelectedClipId;
 
-        StatusText = $"{row.InputLabel} ({row.MappingTrigger}): {clipName}";
+        StatusText = $"{row.InputLabel}: {clipName}";
+    }
+
+    private void RemoveDuplicateCustomMappings(KeyMappingRowViewModel sourceRow)
+    {
+        _isSynchronizingMappings = true;
+
+        try
+        {
+            foreach (var row in GetAllRows())
+            {
+                if (ReferenceEquals(row, sourceRow)
+                    || row.SelectedClipId is null
+                    || row.InputCode != sourceRow.InputCode
+                    || row.MappingTrigger != DefaultMappingTrigger)
+                {
+                    continue;
+                }
+
+                row.SelectedClipId = null;
+                _soundEngine.SetKeyMapping(row.InputCode, null, DefaultMappingTrigger);
+                _rowBindings[row] = (row.InputCode, DefaultMappingTrigger);
+            }
+        }
+        finally
+        {
+            _isSynchronizingMappings = false;
+        }
     }
 
     private void ClearMappings()
     {
+        if (_capturingKeyboardRow is not null)
+        {
+            _capturingKeyboardRow.IsCapturingInput = false;
+            _capturingKeyboardRow = null;
+        }
+
         _soundEngine.ClearMappings();
 
         foreach (var row in GetAllRows())

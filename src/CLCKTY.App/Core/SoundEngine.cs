@@ -50,8 +50,8 @@ public sealed class SoundEngine : ISoundEngine
 
         _outputDevice = new WaveOutEvent
         {
-            DesiredLatency = 35,
-            NumberOfBuffers = 2
+            DesiredLatency = 60,
+            NumberOfBuffers = 3
         };
 
         _outputDevice.Init(_mixer);
@@ -248,8 +248,9 @@ public sealed class SoundEngine : ISoundEngine
     public void StartHoldForKey(int virtualKey)
     {
         LoadedSoundProfile? profile;
-        SoundClip? clip;
-        float volume;
+        SoundClip? clipToPlay = null;
+        float volume = 0f;
+        var splitClipOnRelease = false;
 
         lock (_sync)
         {
@@ -263,24 +264,78 @@ public sealed class SoundEngine : ISoundEngine
                 return;
             }
 
-            var clipId = ResolveClipForKey(profile, virtualKey, KeyEventTrigger.Down);
-            if (!profile.Clips.TryGetValue(clipId, out clip))
+            _heldKeys.Add(virtualKey);
+
+            SoundClip? mappedDownClip = null;
+            var hasMappedDownClip =
+                _keyMappings.TryGetValue((virtualKey, KeyEventTrigger.Down), out var downClipId)
+                && profile.Clips.TryGetValue(downClipId, out mappedDownClip);
+
+            var hasMappedUpClip =
+                _keyMappings.TryGetValue((virtualKey, KeyEventTrigger.Up), out var upClipId)
+                && profile.Clips.ContainsKey(upClipId);
+
+            if (hasMappedDownClip)
             {
-                clip = profile.Clips[profile.DefaultClipId];
+                clipToPlay = mappedDownClip;
+                _pendingSecondHalf.Remove(virtualKey);
+            }
+            else if (hasMappedUpClip)
+            {
+                // Up-only custom mappings should only trigger on release.
+                _pendingSecondHalf.Remove(virtualKey);
+                return;
+            }
+            else
+            {
+                var clipId = ResolveClipForKey(profile, virtualKey, KeyEventTrigger.Down);
+                if (!profile.Clips.TryGetValue(clipId, out clipToPlay))
+                {
+                    clipToPlay = profile.Clips[profile.DefaultClipId];
+                }
+
+                splitClipOnRelease = true;
             }
 
             volume = _masterVolume;
-            _heldKeys.Add(virtualKey);
+        }
+
+        if (clipToPlay is null)
+        {
+            return;
+        }
+
+        if (!splitClipOnRelease)
+        {
+            var mappedProvider = new VolumeSampleProvider(new CachedSoundSampleProvider(clipToPlay.Sound))
+            {
+                Volume = volume
+            };
+
+            lock (_sync)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _mixer.AddMixerInput(mappedProvider);
+            }
+
+            return;
         }
 
         // Play first half immediately and stash second half for release
         try
         {
-            var audio = clip!.Sound.AudioData;
+            var audio = clipToPlay.Sound.AudioData;
             var total = audio.Length;
             var half = Math.Max(1, total / 2);
 
-            var firstProvider = new VolumeSampleProvider(new PartialCachedSoundSampleProvider(clip.Sound, 0, half)) { Volume = volume };
+            var firstProvider = new VolumeSampleProvider(new PartialCachedSoundSampleProvider(clipToPlay.Sound, 0, half))
+            {
+                Volume = volume
+            };
 
             lock (_sync)
             {
@@ -294,7 +349,7 @@ public sealed class SoundEngine : ISoundEngine
                 {
                     var remaining = new float[total - half];
                     Array.Copy(audio, half, remaining, 0, remaining.Length);
-                    _pendingSecondHalf[virtualKey] = new CachedSound(clip.Sound.WaveFormat, remaining);
+                    _pendingSecondHalf[virtualKey] = new CachedSound(clipToPlay.Sound.WaveFormat, remaining);
                 }
 
                 _mixer.AddMixerInput(firstProvider);
@@ -309,9 +364,9 @@ public sealed class SoundEngine : ISoundEngine
 
     public void ReleaseForKey(int virtualKey)
     {
+        SoundClip? mappedUpClip = null;
         CachedSound? second = null;
-        LoadedSoundProfile? profile = null;
-        SoundClip? mappedClip = null;
+        float volume;
 
         lock (_sync)
         {
@@ -320,27 +375,31 @@ public sealed class SoundEngine : ISoundEngine
                 return;
             }
 
-            if (_profiles.TryGetValue(_activeProfileId, out profile))
+            if (_profiles.TryGetValue(_activeProfileId, out var profile)
+                && _keyMappings.TryGetValue((virtualKey, KeyEventTrigger.Up), out var upClipId)
+                && profile.Clips.TryGetValue(upClipId, out var resolvedUpClip))
             {
-                // check if user mapped an explicit clip for Up events
-                if (_keyMappings.TryGetValue((virtualKey, KeyEventTrigger.Up), out var upClipId) && profile.Clips.TryGetValue(upClipId, out var upClip))
-                {
-                    mappedClip = upClip;
-                }
+                mappedUpClip = resolvedUpClip;
             }
 
-            if (mappedClip is null && _pendingSecondHalf.TryGetValue(virtualKey, out var cached))
+            if (mappedUpClip is null && _pendingSecondHalf.TryGetValue(virtualKey, out var cached))
             {
                 second = cached;
-                _pendingSecondHalf.Remove(virtualKey);
             }
+
+            _pendingSecondHalf.Remove(virtualKey);
+            volume = _masterVolume;
         }
 
         try
         {
-            if (mappedClip is not null)
+            if (mappedUpClip is not null)
             {
-                var providerMapped = new VolumeSampleProvider(new CachedSoundSampleProvider(mappedClip.Sound)) { Volume = _masterVolume };
+                var providerMapped = new VolumeSampleProvider(new CachedSoundSampleProvider(mappedUpClip.Sound))
+                {
+                    Volume = volume
+                };
+
                 lock (_sync)
                 {
                     if (_disposed)
@@ -358,7 +417,11 @@ public sealed class SoundEngine : ISoundEngine
                 return;
             }
 
-            var provider = new VolumeSampleProvider(new CachedSoundSampleProvider(second)) { Volume = _masterVolume };
+            var provider = new VolumeSampleProvider(new CachedSoundSampleProvider(second))
+            {
+                Volume = volume
+            };
+
             lock (_sync)
             {
                 if (_disposed)
@@ -662,7 +725,7 @@ public sealed class SoundEngine : ISoundEngine
 
         try
         {
-            sourceSamples = LoadNormalizedSamplesFromFile(soundFilePath);
+            sourceSamples = PrepareImportedSamples(LoadNormalizedSamplesFromFile(soundFilePath));
         }
         catch (Exception)
         {
@@ -740,8 +803,45 @@ public sealed class SoundEngine : ISoundEngine
 
     private static CachedSound LoadCachedSoundFromFile(string filePath)
     {
-        var sampleData = LoadNormalizedSamplesFromFile(filePath);
+        var sampleData = PrepareImportedSamples(LoadNormalizedSamplesFromFile(filePath));
         return new CachedSound(OutputFormat, sampleData);
+    }
+
+    private static float[] PrepareImportedSamples(float[] sourceSamples)
+    {
+        if (sourceSamples.Length == 0)
+        {
+            return sourceSamples;
+        }
+
+        var peak = 0f;
+
+        for (var i = 0; i < sourceSamples.Length; i++)
+        {
+            var abs = Math.Abs(sourceSamples[i]);
+            if (abs > peak)
+            {
+                peak = abs;
+            }
+        }
+
+        if (peak <= 0f)
+        {
+            return sourceSamples;
+        }
+
+        const float targetPeak = 0.92f;
+        var gain = peak > targetPeak ? targetPeak / peak : 1f;
+        var prepared = new float[sourceSamples.Length];
+
+        for (var i = 0; i < sourceSamples.Length; i++)
+        {
+            prepared[i] = Math.Clamp(sourceSamples[i] * gain, -1f, 1f);
+        }
+
+        var fadeFrames = Math.Min(96, Math.Max(2, (prepared.Length / OutputChannels) / 40));
+        ApplyFade(prepared, fadeFrames);
+        return prepared;
     }
 
     private static CachedSound? SliceCachedSound(float[] sourceSamples, int startMs, int durationMs)

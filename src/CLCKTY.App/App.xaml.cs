@@ -2,17 +2,21 @@
 using CLCKTY.App.Services;
 using CLCKTY.App.UI;
 using Wpf = System.Windows;
+using Threading = System.Threading;
 
 namespace CLCKTY.App;
 
 public partial class App : Wpf.Application
 {
+	private const string SingleInstanceMutexName = "Global\\CLCKTY.App.Singleton";
+
 	private IKeyboardHookService? _keyboardHookService;
 	private ISoundEngine? _soundEngine;
 	private TrayService? _trayService;
 	private StartupService? _startupService;
 	private MainViewModel? _mainViewModel;
 	private MainWindow? _mainWindow;
+	private Threading.Mutex? _singleInstanceMutex;
 
 	private bool _isExitRequested;
 	private bool _isCleanedUp;
@@ -20,6 +24,15 @@ public partial class App : Wpf.Application
 	protected override void OnStartup(Wpf.StartupEventArgs e)
 	{
 		base.OnStartup(e);
+
+		_singleInstanceMutex = new Threading.Mutex(true, SingleInstanceMutexName, out var createdNew);
+		if (!createdNew)
+		{
+			_singleInstanceMutex.Dispose();
+			_singleInstanceMutex = null;
+			Shutdown();
+			return;
+		}
 
 		ShutdownMode = Wpf.ShutdownMode.OnExplicitShutdown;
 
@@ -61,6 +74,11 @@ public partial class App : Wpf.Application
 
 	private void KeyboardHookService_KeyDown(object? sender, GlobalKeyPressedEventArgs e)
 	{
+		if (_mainViewModel is not null && _mainViewModel.TryCaptureKeyboardInput(e.VirtualKey))
+		{
+			return;
+		}
+
 		if (_mainViewModel is null || !_mainViewModel.IsKeyboardSoundEnabled)
 		{
 			return;
@@ -208,6 +226,13 @@ public partial class App : Wpf.Application
 		{
 			_soundEngine.Dispose();
 			_soundEngine = null;
+		}
+
+		if (_singleInstanceMutex is not null)
+		{
+			_singleInstanceMutex.ReleaseMutex();
+			_singleInstanceMutex.Dispose();
+			_singleInstanceMutex = null;
 		}
 	}
 }
