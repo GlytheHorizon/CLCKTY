@@ -1,4 +1,4 @@
-﻿using CLCKTY.App.Core;
+using CLCKTY.App.Core;
 using CLCKTY.App.Services;
 using CLCKTY.App.UI;
 using System.Collections.Generic;
@@ -15,6 +15,7 @@ public partial class App : Wpf.Application
 	private ISoundEngine? _soundEngine;
 	private TrayService? _trayService;
 	private StartupService? _startupService;
+	private StatsService? _statsService;
 	private MainViewModel? _mainViewModel;
 	private MainWindow? _mainWindow;
 	private Threading.Mutex? _singleInstanceMutex;
@@ -42,8 +43,11 @@ public partial class App : Wpf.Application
 		_soundEngine = new SoundEngine();
 		_keyboardHookService = new KeyboardHookService();
 		_startupService = new StartupService();
+		_statsService = new StatsService();
 		_mainViewModel = new MainViewModel(_soundEngine, _startupService);
 		_mainWindow = new MainWindow(_mainViewModel);
+		_mainWindow.SetStatsService(_statsService);
+		_mainWindow.SetSoundEngine(_soundEngine);
 
 		_mainWindow.Closing += MainWindow_Closing;
 		_mainWindow.StateChanged += MainWindow_StateChanged;
@@ -97,6 +101,7 @@ public partial class App : Wpf.Application
 
 		_mainViewModel.ReportInputTriggered(e.VirtualKey, KeyEventTrigger.Down);
 		_soundEngine?.StartHoldForKey(e.VirtualKey);
+		_statsService?.RecordKeyboardClick(e.VirtualKey);
 	}
 
 	private void KeyboardHookService_KeyUp(object? sender, GlobalKeyPressedEventArgs e)
@@ -127,6 +132,7 @@ public partial class App : Wpf.Application
 
 		_mainViewModel.ReportInputTriggered(e.InputCode, KeyEventTrigger.Down);
 		_soundEngine?.StartHoldForKey(e.InputCode);
+		_statsService?.RecordMouseClick(e.InputCode);
 	}
 
 	private void KeyboardHookService_MouseUp(object? sender, GlobalMouseButtonEventArgs e)
@@ -257,6 +263,8 @@ public partial class App : Wpf.Application
 			_singleInstanceMutex.Dispose();
 			_singleInstanceMutex = null;
 		}
+
+		_statsService?.ForceSave();
 	}
 
 	private bool TryHandleToggleHotkeys()

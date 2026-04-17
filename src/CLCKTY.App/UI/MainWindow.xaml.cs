@@ -1,8 +1,13 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using CLCKTY.App.Core;
 using CLCKTY.App.Services;
+using WpfColor = System.Windows.Media.Color;
+using WpfColorConverter = System.Windows.Media.ColorConverter;
+using WpfPoint = System.Windows.Point;
 
 namespace CLCKTY.App.UI;
 
@@ -10,6 +15,11 @@ public partial class MainWindow : Window
 {
     private SettingsWindow? _settingsWindow;
     private InfoWindow? _infoWindow;
+    private StatsWindow? _statsWindow;
+    private RecordItWindow? _recordItWindow;
+    private StatsService? _statsService;
+    private ISoundEngine? _soundEngine;
+    private string _currentMode = "Normal";
 
     public MainWindow(MainViewModel viewModel)
     {
@@ -17,6 +27,16 @@ public partial class MainWindow : Window
         DataContext = viewModel;
         NavigateToSection("Dashboard");
         viewModel.InputTriggered += ViewModel_InputTriggered;
+    }
+
+    public void SetStatsService(StatsService statsService)
+    {
+        _statsService = statsService;
+    }
+
+    public void SetSoundEngine(ISoundEngine soundEngine)
+    {
+        _soundEngine = soundEngine;
     }
 
     public void ShowPanel()
@@ -121,6 +141,63 @@ public partial class MainWindow : Window
         }
     }
 
+    private void StatsButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_statsService is null) return;
+
+            if (_statsWindow is null || !_statsWindow.IsLoaded)
+            {
+                _statsWindow = new StatsWindow(_statsService)
+                {
+                    Owner = this
+                };
+            }
+
+            if (!_statsWindow.IsVisible)
+            {
+                _statsWindow.Show();
+            }
+
+            _statsWindow.RefreshDisplay();
+            _statsWindow.Activate();
+        }
+        catch (Exception ex)
+        {
+            _statsWindow = null;
+            System.Diagnostics.Debug.WriteLine($"Failed to open StatsWindow: {ex}");
+        }
+    }
+
+    private void RecordItNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_soundEngine is null) return;
+
+            if (_recordItWindow is null || !_recordItWindow.IsLoaded)
+            {
+                _recordItWindow = new RecordItWindow(_soundEngine)
+                {
+                    Owner = this
+                };
+            }
+
+            if (!_recordItWindow.IsVisible)
+            {
+                _recordItWindow.Show();
+            }
+
+            _recordItWindow.Activate();
+        }
+        catch (Exception ex)
+        {
+            _recordItWindow = null;
+            System.Diagnostics.Debug.WriteLine($"Failed to open RecordItWindow: {ex}");
+        }
+    }
+
     private void DeleteClipOptionButton_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel viewModel
@@ -202,14 +279,15 @@ public partial class MainWindow : Window
         SetNavButtonState(SoundProfilesNavButton, section == "SoundProfiles");
         SetNavButtonState(KeyMappingsNavButton, section == "KeyMappings");
         SetNavButtonState(MouseSettingsNavButton, section == "MouseSettings");
+        SetNavButtonState(RecordItNavButton, false); // Record It opens as a window, not a section
     }
 
     private static void SetNavButtonState(System.Windows.Controls.Button button, bool isActive)
     {
         button.Tag = isActive ? "Active" : null;
         button.Foreground = isActive
-            ? new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#22D883"))
-            : new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#9FD8C1"));
+            ? new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#22D883"))
+            : new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#9FD8C1"));
     }
 
     private void ViewModel_InputTriggered(object? sender, InputTriggeredPreviewEventArgs e)
@@ -223,10 +301,10 @@ public partial class MainWindow : Window
 
     private void AnimateTestTypingPreview()
     {
-        if (TestTypingPreviewCard.RenderTransform is not System.Windows.Media.ScaleTransform scaleTransform)
+        if (TestTypingPreviewCard.RenderTransform is not ScaleTransform scaleTransform)
         {
-            scaleTransform = new System.Windows.Media.ScaleTransform(1d, 1d);
-            TestTypingPreviewCard.RenderTransformOrigin = new System.Windows.Point(0.5d, 0.5d);
+            scaleTransform = new ScaleTransform(1d, 1d);
+            TestTypingPreviewCard.RenderTransformOrigin = new WpfPoint(0.5d, 0.5d);
             TestTypingPreviewCard.RenderTransform = scaleTransform;
         }
 
@@ -245,8 +323,8 @@ public partial class MainWindow : Window
             AutoReverse = true
         };
 
-        scaleTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, scalePulse, HandoffBehavior.SnapshotAndReplace);
-        scaleTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, scalePulse, HandoffBehavior.SnapshotAndReplace);
+        scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, scalePulse, HandoffBehavior.SnapshotAndReplace);
+        scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, scalePulse, HandoffBehavior.SnapshotAndReplace);
         TestTypingPreviewCard.BeginAnimation(OpacityProperty, opacityPulse, HandoffBehavior.SnapshotAndReplace);
     }
 
@@ -294,10 +372,91 @@ public partial class MainWindow : Window
             EasingFunction = easing
         };
 
-        VisualizerKeycapTranslate.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, keycapMoveAnimation, HandoffBehavior.SnapshotAndReplace);
-        VisualizerKeycapScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, keycapScaleAnimation, HandoffBehavior.SnapshotAndReplace);
-        VisualizerKeycapScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, keycapScaleAnimation, HandoffBehavior.SnapshotAndReplace);
+        VisualizerKeycapTranslate.BeginAnimation(TranslateTransform.YProperty, keycapMoveAnimation, HandoffBehavior.SnapshotAndReplace);
+        VisualizerKeycapScale.BeginAnimation(ScaleTransform.ScaleXProperty, keycapScaleAnimation, HandoffBehavior.SnapshotAndReplace);
+        VisualizerKeycapScale.BeginAnimation(ScaleTransform.ScaleYProperty, keycapScaleAnimation, HandoffBehavior.SnapshotAndReplace);
         VisualizerKeycapShadow.BeginAnimation(OpacityProperty, shadowOpacityAnimation, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    // ── Mode Preset Handlers ────────────────────────────────────────────
+
+    private void ModeNormal_Click(object sender, MouseButtonEventArgs e)
+    {
+        ApplyMode("Normal", 75);
+    }
+
+    private void ModeMeeting_Click(object sender, MouseButtonEventArgs e)
+    {
+        ApplyMode("Meeting", 25);
+    }
+
+    private void ModeGaming_Click(object sender, MouseButtonEventArgs e)
+    {
+        ApplyMode("Gaming", 90);
+    }
+
+    private void ModeSilent_Click(object sender, MouseButtonEventArgs e)
+    {
+        ApplyMode("Silent", 0);
+    }
+
+    private void ApplyMode(string modeName, double volume)
+    {
+        _currentMode = modeName;
+
+        if (DataContext is MainViewModel vm)
+        {
+            vm.Volume = volume;
+
+            switch (modeName)
+            {
+                case "Meeting":
+                    vm.IsKeyboardSoundEnabled = true;
+                    vm.IsMouseSoundEnabled = false;
+                    break;
+                case "Silent":
+                    vm.IsEnabled = false;
+                    break;
+                case "Gaming":
+                    vm.IsEnabled = true;
+                    vm.IsKeyboardSoundEnabled = true;
+                    vm.IsMouseSoundEnabled = true;
+                    break;
+                default: // Normal
+                    vm.IsEnabled = true;
+                    vm.IsKeyboardSoundEnabled = true;
+                    vm.IsMouseSoundEnabled = true;
+                    break;
+            }
+        }
+
+        UpdateModeButtonStyles(modeName);
+    }
+
+    private void UpdateModeButtonStyles(string activeMode)
+    {
+        var accentBrush = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#22D883"));
+        var inactiveBg = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#1A3D30"));
+        var activeTextBrush = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#07241A"));
+        var inactiveTextBrush = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#E8FFF5"));
+
+        SetModeBtnStyle(ModeNormalBtn, activeMode == "Normal", accentBrush, inactiveBg, activeTextBrush, inactiveTextBrush);
+        SetModeBtnStyle(ModeMeetingBtn, activeMode == "Meeting", accentBrush, inactiveBg, activeTextBrush, inactiveTextBrush);
+        SetModeBtnStyle(ModeGamingBtn, activeMode == "Gaming", accentBrush, inactiveBg, activeTextBrush, inactiveTextBrush);
+        SetModeBtnStyle(ModeSilentBtn, activeMode == "Silent", accentBrush, inactiveBg, activeTextBrush, inactiveTextBrush);
+    }
+
+    private static void SetModeBtnStyle(System.Windows.Controls.Border border, bool isActive,
+        SolidColorBrush accentBrush, SolidColorBrush inactiveBg,
+        SolidColorBrush activeTextBrush, SolidColorBrush inactiveTextBrush)
+    {
+        border.Background = isActive ? accentBrush : inactiveBg;
+
+        if (border.Child is TextBlock tb)
+        {
+            tb.Foreground = isActive ? activeTextBrush : inactiveTextBrush;
+            tb.FontWeight = isActive ? FontWeights.Bold : FontWeights.SemiBold;
+        }
     }
 
     private static string BuildKeycapLabel(int inputCode)

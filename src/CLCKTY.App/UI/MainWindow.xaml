@@ -1028,6 +1028,27 @@
                             </Grid>
                         </Button>
 
+                        <Button x:Name="RecordItNavButton"
+                            Margin="0,6,0,0"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Click="RecordItNavButton_Click">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="&#xE7C8;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="18"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Record It"
+                                           Margin="10,0,0,0"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
+
                         <Border Background="#15241E"
                             BorderBrush="#2A5647"
                             BorderThickness="1"
@@ -1159,7 +1180,18 @@
                         <StackPanel Grid.Column="1"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Center">
+                            <Button ToolTip="Stats &amp; Achievements"
+                                    Style="{StaticResource HeaderIconButtonStyle}"
+                                    Click="StatsButton_Click">
+                                <TextBlock FontFamily="Segoe MDL2 Assets"
+                                           Text="&#xE7FC;"
+                                           FontSize="13"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Button>
+
                             <Button ToolTip="Information"
+                                    Margin="8,0,0,0"
                                     Style="{StaticResource HeaderIconButtonStyle}"
                                     Click="InfoButton_Click">
                                 <TextBlock FontFamily="Segoe MDL2 Assets"
@@ -1219,6 +1251,85 @@
                                         <RowDefinition Height="12" />
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
+
+                                    <!-- Mode Preset Bar -->
+                                    <Border Background="#111E19"
+                                            CornerRadius="8"
+                                            Padding="10,8"
+                                            Margin="0,0,0,10">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="&#xE790;"
+                                                           FontFamily="Segoe MDL2 Assets"
+                                                           Foreground="{StaticResource AccentBrush}"
+                                                           FontSize="14"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,8,0" />
+                                                <TextBlock Text="Mode"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           VerticalAlignment="Center" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1"
+                                                        Orientation="Horizontal"
+                                                        HorizontalAlignment="Right">
+                                                <Border x:Name="ModeNormalBtn"
+                                                        Background="{StaticResource AccentBrush}"
+                                                        CornerRadius="6"
+                                                        Padding="10,4"
+                                                        Margin="0,0,4,0"
+                                                        Cursor="Hand"
+                                                        MouseLeftButtonDown="ModeNormal_Click">
+                                                    <TextBlock Text="Normal"
+                                                               Foreground="#07241A"
+                                                               FontSize="10"
+                                                               FontWeight="Bold" />
+                                                </Border>
+                                                <Border x:Name="ModeMeetingBtn"
+                                                        Background="#1A3D30"
+                                                        CornerRadius="6"
+                                                        Padding="10,4"
+                                                        Margin="0,0,4,0"
+                                                        Cursor="Hand"
+                                                        MouseLeftButtonDown="ModeMeeting_Click">
+                                                    <TextBlock Text="Meeting"
+                                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold" />
+                                                </Border>
+                                                <Border x:Name="ModeGamingBtn"
+                                                        Background="#1A3D30"
+                                                        CornerRadius="6"
+                                                        Padding="10,4"
+                                                        Margin="0,0,4,0"
+                                                        Cursor="Hand"
+                                                        MouseLeftButtonDown="ModeGaming_Click">
+                                                    <TextBlock Text="Gaming"
+                                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold" />
+                                                </Border>
+                                                <Border x:Name="ModeSilentBtn"
+                                                        Background="#1A3D30"
+                                                        CornerRadius="6"
+                                                        Padding="10,4"
+                                                        Cursor="Hand"
+                                                        MouseLeftButtonDown="ModeSilent_Click">
+                                                    <TextBlock Text="Silent"
+                                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
 
                                     <StackPanel>
                                         <TextBlock Text="Current Configuration"
