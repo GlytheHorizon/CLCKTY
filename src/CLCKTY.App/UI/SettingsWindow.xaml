@@ -132,7 +132,7 @@
 
                 <StackPanel>
                     <TextBlock Text="Settings"
-                               FontFamily="pack://application:,,,/Assets/Fonts/Splatink.otf#Splatink"
+                               FontFamily="/CLCKTY.App;component/Assets/Fonts/#Splatink PERSONAL USE"
                                FontSize="22"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" />

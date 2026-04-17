@@ -10,6 +10,8 @@ namespace CLCKTY.App.UI;
 public sealed class MainViewModel : ViewModelBase
 {
     private const KeyEventTrigger DefaultMappingTrigger = KeyEventTrigger.Down;
+    private const int MaxLiveActivityEntries = 8;
+    private const int MaxCategoryActivityEntries = 40;
 
     private readonly ISoundEngine _soundEngine;
     private readonly StartupService _startupService;
@@ -811,19 +813,19 @@ public sealed class MainViewModel : ViewModelBase
         var entry = $"{DateTime.Now:HH:mm:ss}  {message}";
 
         ActivityFeed.Insert(0, entry);
-        TrimActivityFeed(ActivityFeed);
+        TrimActivityFeed(ActivityFeed, MaxLiveActivityEntries);
 
         if (isMouseActivity == true)
         {
             MouseActivityFeed.Insert(0, entry);
-            TrimActivityFeed(MouseActivityFeed);
+            TrimActivityFeed(MouseActivityFeed, MaxCategoryActivityEntries);
             return;
         }
 
         if (isMouseActivity == false)
         {
             KeyboardActivityFeed.Insert(0, entry);
-            TrimActivityFeed(KeyboardActivityFeed);
+            TrimActivityFeed(KeyboardActivityFeed, MaxCategoryActivityEntries);
             return;
         }
 
@@ -832,20 +834,20 @@ public sealed class MainViewModel : ViewModelBase
         if (lowerMessage.Contains("mouse", StringComparison.Ordinal))
         {
             MouseActivityFeed.Insert(0, entry);
-            TrimActivityFeed(MouseActivityFeed);
+            TrimActivityFeed(MouseActivityFeed, MaxCategoryActivityEntries);
         }
 
         if (lowerMessage.Contains("keyboard", StringComparison.Ordinal)
             || lowerMessage.Contains("key", StringComparison.Ordinal))
         {
             KeyboardActivityFeed.Insert(0, entry);
-            TrimActivityFeed(KeyboardActivityFeed);
+            TrimActivityFeed(KeyboardActivityFeed, MaxCategoryActivityEntries);
         }
     }
 
-    private static void TrimActivityFeed(ObservableCollection<string> feed)
+    private static void TrimActivityFeed(ObservableCollection<string> feed, int maxEntries)
     {
-        while (feed.Count > 40)
+        while (feed.Count > maxEntries)
         {
             feed.RemoveAt(feed.Count - 1);
         }

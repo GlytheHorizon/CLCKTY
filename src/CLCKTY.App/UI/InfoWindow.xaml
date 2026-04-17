@@ -56,6 +56,15 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="LinkIconButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource IconButtonStyle}">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Background" Value="#12392C" />
+            <Setter Property="BorderBrush" Value="#2A6A53" />
+        </Style>
     </Window.Resources>
 
     <Border CornerRadius="18"
@@ -129,18 +138,58 @@
                                     Text="Inspired by Keeby by Adrian Angelo Abelarde (Keeby)"
                                     Foreground="{StaticResource TextSecondaryBrush}"
                                     TextWrapping="Wrap" />
-                            <TextBlock Margin="18,0,0,0"
-                                    Text="Hai Nguyen (Mechvibes)"
-                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                    TextWrapping="Wrap" />
+                            <Grid Margin="18,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="Hai Nguyen (Mechvibes)"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"
+                                           VerticalAlignment="Center" />
+
+                                <Button Grid.Column="1"
+                                        Margin="8,0,0,0"
+                                        ToolTip="Open MechvibesDX on GitHub"
+                                        Style="{StaticResource LinkIconButtonStyle}"
+                                        Click="OpenMechvibesGithubButton_Click">
+                                    <Viewbox Width="14" Height="14">
+                                        <Path Fill="#E8FFF5"
+                                              Stretch="Uniform"
+                                              Data="M8,0.5C3.86,0.5 0.5,3.86 0.5,8C0.5,11.31 2.65,14.11 5.63,15.1C6.01,15.17 6.14,14.94 6.14,14.75C6.14,14.58 6.13,14.02 6.12,13.34C4.03,13.79 3.59,12.44 3.59,12.44C3.25,11.58 2.77,11.35 2.77,11.35C2.1,10.89 2.82,10.9 2.82,10.9C3.56,10.95 3.95,11.66 3.95,11.66C4.61,12.79 5.69,12.47 6.11,12.28C6.18,11.8 6.36,11.47 6.56,11.28C4.89,11.09 3.14,10.44 3.14,7.55C3.14,6.73 3.43,6.06 3.91,5.53C3.84,5.34 3.58,4.57 3.99,3.52C3.99,3.52 4.62,3.32 6.14,4.35C6.74,4.18 7.39,4.1 8.03,4.1C8.67,4.1 9.32,4.18 9.92,4.35C11.44,3.32 12.07,3.52 12.07,3.52C12.48,4.57 12.22,5.34 12.15,5.53C12.63,6.06 12.92,6.73 12.92,7.55C12.92,10.45 11.17,11.09 9.5,11.28C9.75,11.49 9.97,11.91 9.97,12.56C9.97,13.5 9.96,14.44 9.96,14.75C9.96,14.94 10.09,15.17 10.48,15.1C13.45,14.11 15.5,11.31 15.5,8C15.5,3.86 12.14,0.5 8,0.5Z" />
+                                    </Viewbox>
+                                </Button>
+                            </Grid>
 
                             <TextBlock Margin="0,16,0,0"
                                        Text="Features:"
                                        Foreground="{StaticResource TextPrimaryBrush}"
                                        FontWeight="SemiBold" />
                             <TextBlock Margin="0,4,0,0"
-                                       Text="&#x2022; (add features here)"
-                                       Foreground="{StaticResource TextSecondaryBrush}" />
+                                       Text="&#x2022; Global keyboard and mouse sound playback with low latency"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Margin="0,2,0,0"
+                                       Text="&#x2022; Separate keyboard and mouse profiles with independent routing"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Margin="0,2,0,0"
+                                       Text="&#x2022; Import Mechvibes-style packs and map per-key or per-button sounds"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Margin="0,2,0,0"
+                                       Text="&#x2022; Custom audio upload for specific key and mouse mappings"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Margin="0,2,0,0"
+                                       Text="&#x2022; Live trigger preview, profile switching, and activity monitoring"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Margin="0,2,0,0"
+                                       Text="&#x2022; Tray controls, startup option, and global toggle hotkeys"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
 
                             <TextBlock Margin="0,16,0,0"
                                        Text="Privacy:"
