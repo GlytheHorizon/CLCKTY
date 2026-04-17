@@ -170,7 +170,7 @@ public sealed class SoundEngine : ISoundEngine
                 .Select(clip => new SoundClipDescriptor(
                     clip.Id,
                     clip.DisplayName,
-                    clip.SourceLabel,
+                    BuildClipOptionSourceLabel(profile, clip),
                     string.Equals(clip.SourceLabel, "Uploaded", StringComparison.OrdinalIgnoreCase)
                     && !string.Equals(clip.Id, profile.DefaultClipId, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
@@ -809,6 +809,40 @@ public sealed class SoundEngine : ISoundEngine
         }
 
         return clip.DisplayName;
+    }
+
+    private static string BuildClipOptionSourceLabel(LoadedSoundProfile profile, SoundClip clip)
+    {
+        if (string.IsNullOrWhiteSpace(clip.SourceLabel))
+        {
+            return string.Empty;
+        }
+
+        if (string.Equals(clip.SourceLabel, "Stock", StringComparison.OrdinalIgnoreCase))
+        {
+            return clip.SourceLabel;
+        }
+
+        var packName = NormalizePackDisplayName(profile.DisplayName);
+        if (string.IsNullOrWhiteSpace(packName))
+        {
+            return clip.SourceLabel;
+        }
+
+        return $"{packName} - {clip.SourceLabel}";
+    }
+
+    private static string NormalizePackDisplayName(string profileDisplayName)
+    {
+        if (string.IsNullOrWhiteSpace(profileDisplayName))
+        {
+            return string.Empty;
+        }
+
+        return profileDisplayName
+            .Replace(" (Imported)", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace(" (Custom)", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Trim();
     }
 
     private string ResolveClipForKey(LoadedSoundProfile profile, int virtualKey, KeyEventTrigger trigger)

@@ -34,7 +34,7 @@
         <SolidColorBrush x:Key="PopupBackgroundBrush" Color="#0E1D17" />
         <FontFamily x:Key="SidebarFontFamily">/CLCKTY.App;component/Assets/Fonts/#Rajdhani</FontFamily>
         <FontFamily x:Key="DashboardFontFamily">/CLCKTY.App;component/Assets/Fonts/#Rajdhani</FontFamily>
-        <FontFamily x:Key="DashboardHeadingFontFamily">/CLCKTY.App;component/Assets/Fonts/#Anton</FontFamily>
+        <FontFamily x:Key="DashboardHeadingFontFamily">/CLCKTY.App;component/Assets/Fonts/#Rajdhani</FontFamily>
 
         <Style x:Key="ModernCardStyle" TargetType="Border">
             <Setter Property="BorderThickness" Value="0" />
@@ -778,7 +778,7 @@
         <DataTemplate x:Key="MappingRowTemplate" DataType="{x:Type ui:KeyMappingRowViewModel}">
             <Grid Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="190" />
+                    <ColumnDefinition Width="160" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="40" />
                     <ColumnDefinition Width="34" />
@@ -795,7 +795,7 @@
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource GlowButtonStyle}">
                             <Setter Property="HorizontalContentAlignment" Value="Left" />
-                            <Setter Property="Padding" Value="14,8" />
+                            <Setter Property="Padding" Value="11,8" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsCapturingInput}" Value="True">
                                     <Setter Property="Background" Value="{StaticResource AccentBrush}" />
@@ -1062,14 +1062,14 @@
                         <Border x:Name="TestTypingPreviewCard"
                                 Grid.Column="0"
                                 Height="34"
-                                Width="520"
+                            Width="496"
                                 HorizontalAlignment="Left"
                                 Background="#152520"
                                 BorderBrush="Transparent"
                                 BorderThickness="0"
                                 CornerRadius="8"
                                 VerticalAlignment="Center"
-                                Margin="0,0,18,0"
+                            Margin="14,0,18,0"
                                 Padding="10,0">
                             <StackPanel Orientation="Horizontal"
                                         VerticalAlignment="Center">
@@ -1649,23 +1649,30 @@
                                         Style="{StaticResource ModernCardStyle}"
                                         Background="#111917"
                                         Padding="12">
-                                    <StackPanel>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+
                                         <TextBlock Text="Live Activity"
                                                    FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                    Foreground="{StaticResource TextPrimaryBrush}"
                                                    FontWeight="SemiBold" />
-                                        <TextBlock Text="Inspired by Mechvibes system logs"
+                                        <TextBlock Grid.Row="1"
+                                                   Text="Inspired by Mechvibes system logs"
                                                    Foreground="#8DC4AE"
                                                    FontSize="11"
                                                    Margin="0,4,0,10" />
 
-                                        <Border Background="#172320"
+                                        <Border Grid.Row="2"
+                                                Background="#172320"
                                                 BorderBrush="Transparent"
                                                 BorderThickness="0"
                                                 CornerRadius="8"
                                                 Padding="8">
-                                            <ScrollViewer Height="228"
-                                                          VerticalScrollBarVisibility="Auto"
+                                            <ScrollViewer VerticalScrollBarVisibility="Auto"
                                                           HorizontalScrollBarVisibility="Disabled">
                                                 <ItemsControl ItemsSource="{Binding ActivityFeed}">
                                                     <ItemsControl.ItemTemplate>
@@ -1681,7 +1688,7 @@
                                                 </ItemsControl>
                                             </ScrollViewer>
                                         </Border>
-                                    </StackPanel>
+                                    </Grid>
                                 </Border>
                             </Grid>
                         </StackPanel>
@@ -1750,34 +1757,6 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Margin="0,12,0,0"
-                                    Style="{StaticResource ModernCardStyle}"
-                                    Background="#111917"
-                                    Padding="12">
-                                <StackPanel>
-                                    <TextBlock Text="Recent Activity"
-                                               FontFamily="{StaticResource DashboardHeadingFontFamily}"
-                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                               FontWeight="SemiBold" />
-                                    <ScrollViewer Height="170"
-                                                  Margin="0,8,0,0"
-                                                  VerticalScrollBarVisibility="Auto"
-                                                  HorizontalScrollBarVisibility="Disabled">
-                                        <ItemsControl ItemsSource="{Binding KeyboardActivityFeed}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding}"
-                                                               FontFamily="Consolas"
-                                                               Foreground="#CFECE0"
-                                                               FontSize="11"
-                                                               Margin="0,0,0,6"
-                                                               TextWrapping="Wrap" />
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </ScrollViewer>
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
 
                         <StackPanel x:Name="MouseSettingsSectionPanel"
@@ -1844,34 +1823,6 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Margin="0,12,0,0"
-                                    Style="{StaticResource ModernCardStyle}"
-                                    Background="#111917"
-                                    Padding="12">
-                                <StackPanel>
-                                    <TextBlock Text="Recent Activity"
-                                               FontFamily="{StaticResource DashboardHeadingFontFamily}"
-                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                               FontWeight="SemiBold" />
-                                    <ScrollViewer Height="170"
-                                                  Margin="0,8,0,0"
-                                                  VerticalScrollBarVisibility="Auto"
-                                                  HorizontalScrollBarVisibility="Disabled">
-                                        <ItemsControl ItemsSource="{Binding MouseActivityFeed}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding}"
-                                                               FontFamily="Consolas"
-                                                               Foreground="#CFECE0"
-                                                               FontSize="11"
-                                                               Margin="0,0,0,6"
-                                                               TextWrapping="Wrap" />
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </ScrollViewer>
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
