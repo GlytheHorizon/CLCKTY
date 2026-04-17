@@ -18,9 +18,13 @@
     <Content Include="Assets\Icons\clckty-app.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Assets\Icons\clckty.ico">
+    <Content Include="Assets\Icons\clckty.ico" Condition="Exists('Assets\\Icons\\clckty.ico')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Fonts\Splatink.otf" />
   </ItemGroup>
 
 </Project>

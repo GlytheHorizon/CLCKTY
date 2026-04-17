@@ -1,5 +1,4 @@
 using System.Drawing;
-using System.IO;
 using System.Runtime.InteropServices;
 using Forms = System.Windows.Forms;
 
@@ -43,33 +42,12 @@ public sealed class TrayService : IDisposable
             ContextMenuStrip = menu
         };
 
-        // Prefer an ICO file for the tray icon: Assets/Icons/clckty.ico
+        // Use the same logo source and sizing logic as taskbar for consistent branding.
         try
         {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var icoPath = Path.Combine(baseDir, "Assets", "Icons", "clckty.ico");
-            var pngPath = Path.Combine(baseDir, "Assets", "Icons", "clckty-app.png");
-
-            if (File.Exists(icoPath))
+            _customIcon = IconAssetLoader.LoadTrayLogo(out _customIconHandle);
+            if (_customIcon is not null)
             {
-                // load .ico directly
-                try
-                {
-                    var ico = new System.Drawing.Icon(icoPath);
-                    _notifyIcon.Icon = ico;
-                    // keep a reference so it gets disposed with the notify icon
-                    _customIcon = ico;
-                }
-                catch
-                {
-                    // fall back to png below
-                }
-            }
-            else if (File.Exists(pngPath))
-            {
-                using var bmp = new System.Drawing.Bitmap(pngPath);
-                _customIconHandle = bmp.GetHicon();
-                _customIcon = System.Drawing.Icon.FromHandle(_customIconHandle);
                 _notifyIcon.Icon = _customIcon;
             }
         }

@@ -51,6 +51,8 @@ public sealed class MainViewModel : ViewModelBase
         CaptureKeyboardInputCommand = new RelayCommand(parameter => BeginKeyboardCapture(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel row && !row.IsMouseMapping);
         RemoveMappingCommand = new RelayCommand(parameter => RemoveMapping(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel);
         ImportMappingAudioCommand = new RelayCommand(parameter => _ = ImportMappingAudioAsync(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel && !IsImportingClip);
+        RemoveClipOptionCommand = new RelayCommand(parameter => RemoveClipOption(parameter as KeyMappingOption), parameter => parameter is KeyMappingOption option && option.CanRemove);
+        RemoveImportedProfileCommand = new RelayCommand(parameter => RemoveImportedProfile(parameter as SoundProfileDescriptor), parameter => parameter is SoundProfileDescriptor profile && profile.IsImported);
         ClearMappingsCommand = new RelayCommand(_ => ClearMappings());
 
         RemoveLegacyUpMappings();
@@ -79,6 +81,10 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand RemoveMappingCommand { get; }
 
     public ICommand ImportMappingAudioCommand { get; }
+
+    public ICommand RemoveClipOptionCommand { get; }
+
+    public ICommand RemoveImportedProfileCommand { get; }
 
     public ICommand ClearMappingsCommand { get; }
 
@@ -399,12 +405,17 @@ public sealed class MainViewModel : ViewModelBase
     {
         var clipOptions = new List<KeyMappingOption>
         {
-            new(null, "Default")
+            new(null, "Default", "Profile")
         };
 
-        foreach (var clip in _soundEngine.GetClipOptions())
+        var orderedClips = _soundEngine.GetClipOptions()
+            .OrderByDescending(clip => string.Equals(clip.SourceLabel, "Uploaded", StringComparison.OrdinalIgnoreCase))
+            .ThenBy(clip => clip.DisplayName)
+            .ToList();
+
+        foreach (var clip in orderedClips)
         {
-            clipOptions.Add(new KeyMappingOption(clip.Id, clip.DisplayName));
+            clipOptions.Add(new KeyMappingOption(clip.Id, clip.DisplayName, clip.SourceLabel, clip.CanRemove));
         }
 
         foreach (var row in GetAllRows())
@@ -417,6 +428,64 @@ public sealed class MainViewModel : ViewModelBase
                 _soundEngine.SetKeyMapping(row.InputCode, null, DefaultMappingTrigger);
             }
         }
+    }
+
+    private void RemoveImportedProfile(SoundProfileDescriptor? profile)
+    {
+        if (profile is null || !profile.IsImported)
+        {
+            return;
+        }
+
+        var confirm = Forms.MessageBox.Show(
+            $"Delete imported pack '{profile.DisplayName}'?",
+            "Delete Imported Pack",
+            Forms.MessageBoxButtons.YesNo,
+            Forms.MessageBoxIcon.Warning,
+            Forms.MessageBoxDefaultButton.Button2);
+
+        if (confirm != Forms.DialogResult.Yes)
+        {
+            return;
+        }
+
+        if (!_soundEngine.RemoveImportedProfile(profile.Id))
+        {
+            StatusText = $"Could not remove {profile.DisplayName}.";
+            return;
+        }
+
+        LoadProfiles(_soundEngine.ActiveProfileId);
+        StatusText = $"Removed imported pack: {profile.DisplayName}.";
+    }
+
+    private void RemoveClipOption(KeyMappingOption? option)
+    {
+        if (option?.Id is null)
+        {
+            return;
+        }
+
+        var confirm = Forms.MessageBox.Show(
+            $"Remove '{option.DisplayLabel}' from this profile?",
+            "Delete Sound Choice",
+            Forms.MessageBoxButtons.YesNo,
+            Forms.MessageBoxIcon.Warning,
+            Forms.MessageBoxDefaultButton.Button2);
+
+        if (confirm != Forms.DialogResult.Yes)
+        {
+            return;
+        }
+
+        if (!_soundEngine.RemoveClipFromActiveProfile(option.Id))
+        {
+            StatusText = $"Could not remove {option.DisplayName}.";
+            return;
+        }
+
+        UpdateMappingOptions();
+        StatusText = $"Removed {option.DisplayName} from choices.";
     }
 
     private void OnMappingChanged(object? sender, EventArgs e)
@@ -454,7 +523,7 @@ public sealed class MainViewModel : ViewModelBase
 
         var clipName = row.Options.FirstOrDefault(option =>
                 string.Equals(option.Id, row.SelectedClipId, StringComparison.OrdinalIgnoreCase))
-            ?.DisplayName
+            ?.DisplayLabel
             ?? row.SelectedClipId;
 
         StatusText = $"{row.InputLabel}: {clipName}";

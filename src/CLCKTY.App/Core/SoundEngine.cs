@@ -136,7 +136,12 @@ public sealed class SoundEngine : ISoundEngine
             }
 
             return profile.Clips.Values
-                .Select(clip => new SoundClipDescriptor(clip.Id, clip.DisplayName))
+                .Select(clip => new SoundClipDescriptor(
+                    clip.Id,
+                    clip.DisplayName,
+                    clip.SourceLabel,
+                    string.Equals(clip.SourceLabel, "Uploaded", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(clip.Id, profile.DefaultClipId, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
         }
     }
@@ -195,6 +200,90 @@ public sealed class SoundEngine : ISoundEngine
         {
             ThrowIfDisposed();
             return _keyMappings.TryGetValue((virtualKey, trigger), out var clipId) ? clipId : null;
+        }
+    }
+
+    public bool RemoveClipFromActiveProfile(string clipId)
+    {
+        if (string.IsNullOrWhiteSpace(clipId))
+        {
+            return false;
+        }
+
+        lock (_sync)
+        {
+            ThrowIfDisposed();
+
+            if (!_profiles.TryGetValue(_activeProfileId, out var activeProfile)
+                || !activeProfile.Clips.ContainsKey(clipId)
+                || string.Equals(activeProfile.DefaultClipId, clipId, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var updatedClips = activeProfile.Clips
+                .Where(entry => !string.Equals(entry.Key, clipId, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
+
+            var updatedDefaultKeyClips = activeProfile.DefaultKeyClips
+                .Where(entry => !string.Equals(entry.Value, clipId, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value);
+
+            var removedMappings = _keyMappings
+                .Where(entry => string.Equals(entry.Value, clipId, StringComparison.OrdinalIgnoreCase))
+                .Select(entry => entry.Key)
+                .ToList();
+
+            foreach (var mappingKey in removedMappings)
+            {
+                _keyMappings.Remove(mappingKey);
+            }
+
+            _profiles[activeProfile.Id] = new LoadedSoundProfile(
+                activeProfile.Id,
+                activeProfile.DisplayName,
+                activeProfile.DefaultClipId,
+                updatedClips,
+                updatedDefaultKeyClips,
+                activeProfile.IsImported);
+
+            return true;
+        }
+    }
+
+    public bool RemoveImportedProfile(string profileId)
+    {
+        if (string.IsNullOrWhiteSpace(profileId))
+        {
+            return false;
+        }
+
+        lock (_sync)
+        {
+            ThrowIfDisposed();
+
+            if (!_profiles.TryGetValue(profileId, out var profile) || !profile.IsImported)
+            {
+                return false;
+            }
+
+            if (_profiles.Count <= 1)
+            {
+                return false;
+            }
+
+            _profiles.Remove(profileId);
+
+            if (string.Equals(_activeProfileId, profileId, StringComparison.OrdinalIgnoreCase))
+            {
+                _activeProfileId = _profiles.Values
+                    .OrderBy(candidate => candidate.IsImported)
+                    .ThenBy(candidate => candidate.DisplayName)
+                    .Select(candidate => candidate.Id)
+                    .FirstOrDefault() ?? string.Empty;
+            }
+
+            return true;
         }
     }
 
@@ -478,7 +567,7 @@ public sealed class SoundEngine : ISoundEngine
             var clipDisplayName = ToDisplayName(fileName);
             var clipSound = LoadCachedSoundFromFile(filePath);
 
-            return new SoundClip(clipIdSeed, clipDisplayName, clipSound);
+            return new SoundClip(clipIdSeed, clipDisplayName, clipSound, "Uploaded");
         }, cancellationToken).ConfigureAwait(false);
 
         lock (_sync)
@@ -494,7 +583,7 @@ public sealed class SoundEngine : ISoundEngine
                 .ToDictionary(clip => clip.Id, clip => clip, StringComparer.OrdinalIgnoreCase);
 
             var uniqueClipId = EnsureUniqueClipId(newClips.Keys, importedClip.Id);
-            var updatedClip = new SoundClip(uniqueClipId, importedClip.DisplayName, importedClip.Sound);
+            var updatedClip = new SoundClip(uniqueClipId, importedClip.DisplayName, importedClip.Sound, importedClip.SourceLabel);
             newClips[uniqueClipId] = updatedClip;
 
             var updatedProfile = new LoadedSoundProfile(
@@ -528,7 +617,7 @@ public sealed class SoundEngine : ISoundEngine
     private static SoundProfileDescriptor ToDescriptor(LoadedSoundProfile profile)
     {
         var clips = profile.Clips.Values
-            .Select(clip => new SoundClipDescriptor(clip.Id, clip.DisplayName))
+            .Select(clip => new SoundClipDescriptor(clip.Id, clip.DisplayName, clip.SourceLabel, false))
             .ToList();
 
         return new SoundProfileDescriptor(profile.Id, profile.DisplayName, clips, profile.IsImported);
@@ -662,6 +751,9 @@ public sealed class SoundEngine : ISoundEngine
             return null;
         }
 
+        var folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var packLabel = ToDisplayName(folderName);
+
         var clips = new Dictionary<string, SoundClip>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var waveFile in waveFiles)
@@ -673,7 +765,7 @@ public sealed class SoundEngine : ISoundEngine
             var displayName = ToDisplayName(name);
             var clipSound = LoadCachedSoundFromFile(waveFile);
 
-            clips[clipId] = new SoundClip(clipId, displayName, clipSound);
+            clips[clipId] = new SoundClip(clipId, displayName, clipSound, packLabel);
         }
 
         if (clips.Count == 0)
@@ -682,14 +774,13 @@ public sealed class SoundEngine : ISoundEngine
         }
 
         var defaultClipId = clips.ContainsKey("default") ? "default" : clips.Keys.First();
-        var folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         var baseId = NormalizeToken(folderName);
         var uniqueId = Guid.NewGuid().ToString("N")[..6];
         var profileId = $"custom-{baseId}-{uniqueId}";
 
         return new LoadedSoundProfile(
             profileId,
-            $"{ToDisplayName(folderName)} (Custom)",
+            $"{packLabel} (Custom)",
             defaultClipId,
             clips,
             CreateDefaultKeyMap(),
@@ -737,6 +828,9 @@ public sealed class SoundEngine : ISoundEngine
             return null;
         }
 
+        var folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var displayName = string.IsNullOrWhiteSpace(config.Name) ? ToDisplayName(folderName) : config.Name.Trim();
+
         var clips = new Dictionary<string, SoundClip>(StringComparer.OrdinalIgnoreCase);
         var keyMap = new Dictionary<int, string>();
         var sliceToClip = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -769,7 +863,7 @@ public sealed class SoundEngine : ISoundEngine
 
                 clipId = $"seg{clips.Count + 1:D3}";
                 var segmentName = $"Segment {clips.Count + 1}";
-                clips[clipId] = new SoundClip(clipId, segmentName, sliced);
+                clips[clipId] = new SoundClip(clipId, segmentName, sliced, displayName);
                 sliceToClip[sliceKey] = clipId;
             }
 
@@ -784,8 +878,6 @@ public sealed class SoundEngine : ISoundEngine
             return null;
         }
 
-        var folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        var displayName = string.IsNullOrWhiteSpace(config.Name) ? ToDisplayName(folderName) : config.Name.Trim();
         var normalizedIdSeed = string.IsNullOrWhiteSpace(config.Id) ? displayName : config.Id;
         var baseId = NormalizeToken(normalizedIdSeed);
         var uniqueId = Guid.NewGuid().ToString("N")[..6];
@@ -1197,11 +1289,12 @@ public sealed class SoundEngine : ISoundEngine
 
     private sealed class SoundClip
     {
-        public SoundClip(string id, string displayName, CachedSound sound)
+        public SoundClip(string id, string displayName, CachedSound sound, string sourceLabel = "Stock")
         {
             Id = id;
             DisplayName = displayName;
             Sound = sound;
+            SourceLabel = sourceLabel;
         }
 
         public string Id { get; }
@@ -1209,6 +1302,8 @@ public sealed class SoundEngine : ISoundEngine
         public string DisplayName { get; }
 
         public CachedSound Sound { get; }
+
+        public string SourceLabel { get; }
     }
 
     private sealed class ImportedSoundPackConfig

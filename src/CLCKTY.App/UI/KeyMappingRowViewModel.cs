@@ -117,7 +117,7 @@ public sealed class KeyMappingRowViewModel : ViewModelBase
                 return "Default";
             }
 
-            return Options.FirstOrDefault(option => string.Equals(option.Id, SelectedClipId, StringComparison.OrdinalIgnoreCase))?.DisplayName
+            return Options.FirstOrDefault(option => string.Equals(option.Id, SelectedClipId, StringComparison.OrdinalIgnoreCase))?.DisplayLabel
                 ?? SelectedClipId;
         }
     }

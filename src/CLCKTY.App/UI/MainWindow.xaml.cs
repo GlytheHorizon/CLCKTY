@@ -1,8 +1,8 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
-using System.IO;
-using System.Windows.Media.Imaging;
+using CLCKTY.App.Core;
+using CLCKTY.App.Services;
 
 namespace CLCKTY.App.UI;
 
@@ -33,19 +33,13 @@ public partial class MainWindow : Window
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        // set window icon from optional Assets/Icons/clckty-app.png
+        // set window icon from shared logo loader so taskbar/tray use matching visuals.
         try
         {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var pngPath = Path.Combine(baseDir, "Assets", "Icons", "clckty-app.png");
-            if (File.Exists(pngPath))
+            var taskbarIcon = IconAssetLoader.LoadTaskbarLogo();
+            if (taskbarIcon is not null)
             {
-                var bmp = new BitmapImage();
-                bmp.BeginInit();
-                bmp.UriSource = new Uri(pngPath, UriKind.Absolute);
-                bmp.CacheOption = BitmapCacheOption.OnLoad;
-                bmp.EndInit();
-                Icon = bmp;
+                Icon = taskbarIcon;
             }
         }
         catch
@@ -69,6 +63,34 @@ public partial class MainWindow : Window
     private void HideButton_Click(object sender, RoutedEventArgs e)
     {
         Hide();
+    }
+
+    private void DeleteClipOptionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not FrameworkElement element
+            || element.DataContext is not KeyMappingOption option
+            || !viewModel.RemoveClipOptionCommand.CanExecute(option))
+        {
+            return;
+        }
+
+        viewModel.RemoveClipOptionCommand.Execute(option);
+        e.Handled = true;
+    }
+
+    private void DeleteProfileOptionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not FrameworkElement element
+            || element.DataContext is not SoundProfileDescriptor profile
+            || !viewModel.RemoveImportedProfileCommand.CanExecute(profile))
+        {
+            return;
+        }
+
+        viewModel.RemoveImportedProfileCommand.Execute(profile);
+        e.Handled = true;
     }
 
     private void BeginOpenAnimation()

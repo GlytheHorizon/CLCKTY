@@ -20,6 +20,10 @@ public interface ISoundEngine : IDisposable
 
     string? GetKeyMapping(int virtualKey, KeyEventTrigger trigger = KeyEventTrigger.Down);
 
+    bool RemoveClipFromActiveProfile(string clipId);
+
+    bool RemoveImportedProfile(string profileId);
+
     void ClearMappings();
 
     void PlayForKey(int virtualKey);
