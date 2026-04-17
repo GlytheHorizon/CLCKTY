@@ -8,6 +8,9 @@ namespace CLCKTY.App.UI;
 
 public partial class MainWindow : Window
 {
+    private SettingsWindow? _settingsWindow;
+    private InfoWindow? _infoWindow;
+
     public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
@@ -65,6 +68,43 @@ public partial class MainWindow : Window
         Hide();
     }
 
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_settingsWindow is null || !_settingsWindow.IsLoaded)
+        {
+            _settingsWindow = new SettingsWindow
+            {
+                Owner = this,
+                DataContext = DataContext
+            };
+        }
+
+        if (!_settingsWindow.IsVisible)
+        {
+            _settingsWindow.Show();
+        }
+
+        _settingsWindow.Activate();
+    }
+
+    private void InfoButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_infoWindow is null || !_infoWindow.IsLoaded)
+        {
+            _infoWindow = new InfoWindow
+            {
+                Owner = this
+            };
+        }
+
+        if (!_infoWindow.IsVisible)
+        {
+            _infoWindow.Show();
+        }
+
+        _infoWindow.Activate();
+    }
+
     private void DeleteClipOptionButton_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel viewModel
@@ -84,12 +124,21 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel viewModel
             || sender is not FrameworkElement element
             || element.DataContext is not SoundProfileDescriptor profile
-            || !viewModel.RemoveImportedProfileCommand.CanExecute(profile))
+            || !profile.IsImported)
         {
             return;
         }
 
-        viewModel.RemoveImportedProfileCommand.Execute(profile);
+        var confirmDialog = new DeleteImportedPackDialog(profile.DisplayName)
+        {
+            Owner = this
+        };
+
+        if (confirmDialog.ShowDialog() == true)
+        {
+            viewModel.TryRemoveImportedProfile(profile);
+        }
+
         e.Handled = true;
     }
 

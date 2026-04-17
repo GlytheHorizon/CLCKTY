@@ -449,14 +449,25 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
+        TryRemoveImportedProfile(profile);
+    }
+
+    public bool TryRemoveImportedProfile(SoundProfileDescriptor? profile)
+    {
+        if (profile is null || !profile.IsImported)
+        {
+            return false;
+        }
+
         if (!_soundEngine.RemoveImportedProfile(profile.Id))
         {
             StatusText = $"Could not remove {profile.DisplayName}.";
-            return;
+            return false;
         }
 
         LoadProfiles(_soundEngine.ActiveProfileId);
         StatusText = $"Removed imported pack: {profile.DisplayName}.";
+        return true;
     }
 
     private void RemoveClipOption(KeyMappingOption? option)
