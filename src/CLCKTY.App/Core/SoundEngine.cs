@@ -229,6 +229,10 @@ public sealed class SoundEngine : ISoundEngine
                 .Where(entry => !string.Equals(entry.Value, clipId, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(entry => entry.Key, entry => entry.Value);
 
+            var updatedDefaultKeyUpClips = activeProfile.DefaultKeyUpClips
+                .Where(entry => !string.Equals(entry.Value, clipId, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value);
+
             var removedMappings = _keyMappings
                 .Where(entry => string.Equals(entry.Value, clipId, StringComparison.OrdinalIgnoreCase))
                 .Select(entry => entry.Key)
@@ -245,6 +249,7 @@ public sealed class SoundEngine : ISoundEngine
                 activeProfile.DefaultClipId,
                 updatedClips,
                 updatedDefaultKeyClips,
+                updatedDefaultKeyUpClips,
                 activeProfile.IsImported);
 
             return true;
@@ -364,6 +369,9 @@ public sealed class SoundEngine : ISoundEngine
                 _keyMappings.TryGetValue((virtualKey, KeyEventTrigger.Up), out var upClipId)
                 && profile.Clips.ContainsKey(upClipId);
 
+            var hasProfileUpClip = profile.DefaultKeyUpClips.TryGetValue(virtualKey, out var profileUpClipId)
+                && profile.Clips.ContainsKey(profileUpClipId);
+
             if (hasMappedDownClip)
             {
                 clipToPlay = mappedDownClip;
@@ -383,7 +391,7 @@ public sealed class SoundEngine : ISoundEngine
                     clipToPlay = profile.Clips[profile.DefaultClipId];
                 }
 
-                splitClipOnRelease = true;
+                splitClipOnRelease = !hasMappedUpClip && !hasProfileUpClip;
             }
 
             volume = _masterVolume;
@@ -471,6 +479,14 @@ public sealed class SoundEngine : ISoundEngine
                 mappedUpClip = resolvedUpClip;
             }
 
+            if (mappedUpClip is null
+                && _profiles.TryGetValue(_activeProfileId, out var activeProfile)
+                && activeProfile.DefaultKeyUpClips.TryGetValue(virtualKey, out var defaultUpClipId)
+                && activeProfile.Clips.TryGetValue(defaultUpClipId, out var resolvedDefaultUpClip))
+            {
+                mappedUpClip = resolvedDefaultUpClip;
+            }
+
             if (mappedUpClip is null && _pendingSecondHalf.TryGetValue(virtualKey, out var cached))
             {
                 second = cached;
@@ -539,6 +555,26 @@ public sealed class SoundEngine : ISoundEngine
 
         if (imported is null)
         {
+            var configCandidates = Directory.EnumerateFiles(folderPath, "config.json", SearchOption.AllDirectories)
+                .Select(path => Path.GetDirectoryName(path))
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Take(40)
+                .Cast<string>()
+                .ToList();
+
+            foreach (var candidate in configCandidates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                imported = LoadProfileFromFolder(candidate, cancellationToken);
+                if (imported is not null)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (imported is null)
+        {
             return null;
         }
 
@@ -592,6 +628,7 @@ public sealed class SoundEngine : ISoundEngine
                 activeProfile.DefaultClipId,
                 newClips,
                 activeProfile.DefaultKeyClips,
+                activeProfile.DefaultKeyUpClips,
                 activeProfile.IsImported);
 
             _profiles[updatedProfile.Id] = updatedProfile;
@@ -635,6 +672,11 @@ public sealed class SoundEngine : ISoundEngine
             return profileClipId;
         }
 
+        if (trigger == KeyEventTrigger.Up && profile.DefaultKeyUpClips.TryGetValue(virtualKey, out var profileUpClipId) && profile.Clips.ContainsKey(profileUpClipId))
+        {
+            return profileUpClipId;
+        }
+
         return profile.DefaultClipId;
     }
 
@@ -667,6 +709,7 @@ public sealed class SoundEngine : ISoundEngine
             "default",
             neonClips,
             CreateDefaultKeyMap(),
+            new Dictionary<int, string>(),
             false);
 
         _profiles["stealth-black"] = new LoadedSoundProfile(
@@ -675,6 +718,7 @@ public sealed class SoundEngine : ISoundEngine
             "default",
             stealthClips,
             CreateDefaultKeyMap(),
+            new Dictionary<int, string>(),
             false);
 
         _profiles["crystal-violet"] = new LoadedSoundProfile(
@@ -683,6 +727,7 @@ public sealed class SoundEngine : ISoundEngine
             "default",
             crystalClips,
             CreateDefaultKeyMap(),
+            new Dictionary<int, string>(),
             false);
     }
 
@@ -748,6 +793,15 @@ public sealed class SoundEngine : ISoundEngine
 
         if (waveFiles.Count == 0)
         {
+            foreach (var candidateFolder in EnumerateCandidatePackFolders(folderPath, cancellationToken))
+            {
+                var nested = LoadProfileFromFolder(candidateFolder, cancellationToken);
+                if (nested is not null)
+                {
+                    return nested;
+                }
+            }
+
             return null;
         }
 
@@ -784,16 +838,54 @@ public sealed class SoundEngine : ISoundEngine
             defaultClipId,
             clips,
             CreateDefaultKeyMap(),
+            new Dictionary<int, string>(),
             true);
+    }
+
+    private static IEnumerable<string> EnumerateCandidatePackFolders(string rootFolder, CancellationToken cancellationToken)
+    {
+        IEnumerable<string> firstLevel;
+
+        try
+        {
+            firstLevel = Directory.EnumerateDirectories(rootFolder, "*", SearchOption.TopDirectoryOnly);
+        }
+        catch (Exception)
+        {
+            yield break;
+        }
+
+        foreach (var folder in firstLevel)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return folder;
+
+            IEnumerable<string> secondLevel;
+            try
+            {
+                secondLevel = Directory.EnumerateDirectories(folder, "*", SearchOption.TopDirectoryOnly);
+            }
+            catch (Exception)
+            {
+                continue;
+            }
+
+            foreach (var nested in secondLevel)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return nested;
+            }
+        }
     }
 
     private static LoadedSoundProfile? LoadProfileFromConfig(string folderPath, string configPath, CancellationToken cancellationToken)
     {
         ImportedSoundPackConfig? config;
+        string json;
 
         try
         {
-            var json = File.ReadAllText(configPath);
+            json = File.ReadAllText(configPath);
             config = JsonSerializer.Deserialize<ImportedSoundPackConfig>(json, JsonOptions);
         }
         catch (Exception)
@@ -803,7 +895,7 @@ public sealed class SoundEngine : ISoundEngine
 
         if (config is null || string.IsNullOrWhiteSpace(config.Sound) || config.Defines is null || config.Defines.Count == 0)
         {
-            return null;
+            return LoadProfileFromMechvibesConfig(folderPath, json, cancellationToken);
         }
 
         var soundFilePath = Path.Combine(folderPath, config.Sound);
@@ -890,7 +982,173 @@ public sealed class SoundEngine : ISoundEngine
             defaultClipId,
             clips,
             keyMap.Count > 0 ? keyMap : new Dictionary<int, string>(),
+            new Dictionary<int, string>(),
             true);
+    }
+
+    private static LoadedSoundProfile? LoadProfileFromMechvibesConfig(string folderPath, string rawJson, CancellationToken cancellationToken)
+    {
+        MechvibesSoundPackConfig? config;
+
+        try
+        {
+            config = JsonSerializer.Deserialize<MechvibesSoundPackConfig>(rawJson, JsonOptions);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+
+        if (config is null
+            || string.IsNullOrWhiteSpace(config.AudioFile)
+            || config.Definitions is null
+            || config.Definitions.Count == 0)
+        {
+            return null;
+        }
+
+        var soundFilePath = Path.Combine(folderPath, config.AudioFile);
+        if (!File.Exists(soundFilePath))
+        {
+            return null;
+        }
+
+        float[] sourceSamples;
+
+        try
+        {
+            sourceSamples = PrepareImportedSamples(LoadNormalizedSamplesFromFile(soundFilePath));
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+
+        if (sourceSamples.Length < OutputChannels)
+        {
+            return null;
+        }
+
+        var folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var displayName = string.IsNullOrWhiteSpace(config.Name) ? ToDisplayName(folderName) : config.Name.Trim();
+
+        var clips = new Dictionary<string, SoundClip>(StringComparer.OrdinalIgnoreCase);
+        var keyDownMap = new Dictionary<int, string>();
+        var keyUpMap = new Dictionary<int, string>();
+        var sliceToClip = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var definition in config.Definitions)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!TryMapImportedKeyNameToInputCode(definition.Key, out var mappedInputCode))
+            {
+                continue;
+            }
+
+            var timingPairs = definition.Value?.Timing;
+            if (timingPairs is null || timingPairs.Count == 0)
+            {
+                continue;
+            }
+
+            if (TryGetOrCreateClipFromTiming(
+                sourceSamples,
+                displayName,
+                timingPairs,
+                0,
+                clips,
+                sliceToClip,
+                out var downClipId))
+            {
+                keyDownMap[mappedInputCode] = downClipId;
+            }
+
+            if (TryGetOrCreateClipFromTiming(
+                sourceSamples,
+                displayName,
+                timingPairs,
+                1,
+                clips,
+                sliceToClip,
+                out var upClipId))
+            {
+                keyUpMap[mappedInputCode] = upClipId;
+            }
+        }
+
+        if (clips.Count == 0)
+        {
+            return null;
+        }
+
+        var normalizedIdSeed = string.IsNullOrWhiteSpace(config.Id) ? displayName : config.Id;
+        var baseId = NormalizeToken(normalizedIdSeed);
+        var uniqueId = Guid.NewGuid().ToString("N")[..6];
+        var profileId = $"custom-{baseId}-{uniqueId}";
+        var defaultClipId = clips.Keys.First();
+
+        return new LoadedSoundProfile(
+            profileId,
+            $"{displayName} (Imported)",
+            defaultClipId,
+            clips,
+            keyDownMap.Count > 0 ? keyDownMap : new Dictionary<int, string>(),
+            keyUpMap.Count > 0 ? keyUpMap : new Dictionary<int, string>(),
+            true);
+    }
+
+    private static bool TryGetOrCreateClipFromTiming(
+        float[] sourceSamples,
+        string sourceLabel,
+        IReadOnlyList<float[]> timingPairs,
+        int timingIndex,
+        IDictionary<string, SoundClip> clips,
+        IDictionary<string, string> sliceToClip,
+        out string clipId)
+    {
+        clipId = string.Empty;
+
+        if (timingIndex < 0 || timingIndex >= timingPairs.Count)
+        {
+            return false;
+        }
+
+        var timing = timingPairs[timingIndex];
+        if (timing.Length < 2)
+        {
+            return false;
+        }
+
+        var rawStart = Math.Min(timing[0], timing[1]);
+        var rawEnd = Math.Max(timing[0], timing[1]);
+
+        var startMs = Math.Max(0, (int)Math.Round(rawStart, MidpointRounding.AwayFromZero));
+        var durationMs = Math.Clamp(
+            (int)Math.Round(rawEnd - rawStart, MidpointRounding.AwayFromZero),
+            MinImportedSliceMs,
+            MaxImportedSliceMs);
+
+        var sliceKey = FormattableString.Invariant($"{startMs}:{durationMs}");
+        if (sliceToClip.TryGetValue(sliceKey, out var existingClipId))
+        {
+            clipId = existingClipId ?? string.Empty;
+            return !string.IsNullOrEmpty(clipId);
+        }
+
+        var sliced = SliceCachedSound(sourceSamples, startMs, durationMs);
+        if (sliced is null)
+        {
+            clipId = string.Empty;
+            return false;
+        }
+
+        clipId = $"seg{clips.Count + 1:D3}";
+        var clipDisplayName = $"Segment {clips.Count + 1}";
+        clips[clipId] = new SoundClip(clipId, clipDisplayName, sliced, sourceLabel);
+        sliceToClip[sliceKey] = clipId;
+
+        return true;
     }
 
     private static CachedSound LoadCachedSoundFromFile(string filePath)
@@ -999,6 +1257,238 @@ public sealed class SoundEngine : ISoundEngine
 
         virtualKey = (int)mapped;
         return true;
+    }
+
+    private static bool TryMapImportedKeyNameToInputCode(string? keyName, out int inputCode)
+    {
+        inputCode = 0;
+
+        if (string.IsNullOrWhiteSpace(keyName))
+        {
+            return false;
+        }
+
+        if (string.Equals(keyName, "MouseLeft", StringComparison.OrdinalIgnoreCase))
+        {
+            inputCode = InputBindingCode.MouseLeft;
+            return true;
+        }
+
+        if (string.Equals(keyName, "MouseRight", StringComparison.OrdinalIgnoreCase))
+        {
+            inputCode = InputBindingCode.MouseRight;
+            return true;
+        }
+
+        if (string.Equals(keyName, "MouseMiddle", StringComparison.OrdinalIgnoreCase))
+        {
+            inputCode = InputBindingCode.MouseMiddle;
+            return true;
+        }
+
+        if (string.Equals(keyName, "MouseX1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(keyName, "MouseBack", StringComparison.OrdinalIgnoreCase))
+        {
+            inputCode = InputBindingCode.MouseX1;
+            return true;
+        }
+
+        if (string.Equals(keyName, "MouseX2", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(keyName, "MouseForward", StringComparison.OrdinalIgnoreCase))
+        {
+            inputCode = InputBindingCode.MouseX2;
+            return true;
+        }
+
+        if (keyName.StartsWith("Key", StringComparison.OrdinalIgnoreCase) && keyName.Length == 4)
+        {
+            var letter = char.ToUpperInvariant(keyName[3]);
+            if (letter >= 'A' && letter <= 'Z')
+            {
+                inputCode = letter;
+                return true;
+            }
+        }
+
+        if (keyName.StartsWith("Digit", StringComparison.OrdinalIgnoreCase) && keyName.Length == 6)
+        {
+            var digit = keyName[5];
+            if (digit >= '0' && digit <= '9')
+            {
+                inputCode = digit;
+                return true;
+            }
+        }
+
+        if (keyName.StartsWith("Numpad", StringComparison.OrdinalIgnoreCase))
+        {
+            var suffix = keyName[6..];
+
+            if (int.TryParse(suffix, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numpadDigit)
+                && numpadDigit >= 0
+                && numpadDigit <= 9)
+            {
+                inputCode = 0x60 + numpadDigit;
+                return true;
+            }
+
+            switch (suffix.ToLowerInvariant())
+            {
+                case "add":
+                    inputCode = 0x6B;
+                    return true;
+                case "subtract":
+                    inputCode = 0x6D;
+                    return true;
+                case "multiply":
+                    inputCode = 0x6A;
+                    return true;
+                case "divide":
+                    inputCode = 0x6F;
+                    return true;
+                case "decimal":
+                    inputCode = 0x6E;
+                    return true;
+                case "enter":
+                    inputCode = 0x0D;
+                    return true;
+            }
+        }
+
+        if (keyName.StartsWith("F", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(keyName[1..], NumberStyles.Integer, CultureInfo.InvariantCulture, out var functionKey)
+            && functionKey >= 1
+            && functionKey <= 24)
+        {
+            inputCode = 0x70 + (functionKey - 1);
+            return true;
+        }
+
+        switch (keyName)
+        {
+            case "Escape":
+                inputCode = 0x1B;
+                return true;
+            case "Tab":
+                inputCode = 0x09;
+                return true;
+            case "CapsLock":
+                inputCode = 0x14;
+                return true;
+            case "ShiftLeft":
+                inputCode = 0xA0;
+                return true;
+            case "ShiftRight":
+                inputCode = 0xA1;
+                return true;
+            case "ControlLeft":
+                inputCode = 0xA2;
+                return true;
+            case "ControlRight":
+                inputCode = 0xA3;
+                return true;
+            case "AltLeft":
+                inputCode = 0xA4;
+                return true;
+            case "AltRight":
+                inputCode = 0xA5;
+                return true;
+            case "MetaLeft":
+                inputCode = 0x5B;
+                return true;
+            case "MetaRight":
+                inputCode = 0x5C;
+                return true;
+            case "ContextMenu":
+                inputCode = 0x5D;
+                return true;
+            case "Space":
+                inputCode = 0x20;
+                return true;
+            case "Enter":
+                inputCode = 0x0D;
+                return true;
+            case "Backspace":
+                inputCode = 0x08;
+                return true;
+            case "Backquote":
+                inputCode = 0xC0;
+                return true;
+            case "Minus":
+                inputCode = 0xBD;
+                return true;
+            case "Equal":
+                inputCode = 0xBB;
+                return true;
+            case "BracketLeft":
+                inputCode = 0xDB;
+                return true;
+            case "BracketRight":
+                inputCode = 0xDD;
+                return true;
+            case "Backslash":
+                inputCode = 0xDC;
+                return true;
+            case "Semicolon":
+                inputCode = 0xBA;
+                return true;
+            case "Quote":
+                inputCode = 0xDE;
+                return true;
+            case "Comma":
+                inputCode = 0xBC;
+                return true;
+            case "Period":
+                inputCode = 0xBE;
+                return true;
+            case "Slash":
+                inputCode = 0xBF;
+                return true;
+            case "Insert":
+                inputCode = 0x2D;
+                return true;
+            case "Delete":
+                inputCode = 0x2E;
+                return true;
+            case "Home":
+                inputCode = 0x24;
+                return true;
+            case "End":
+                inputCode = 0x23;
+                return true;
+            case "PageUp":
+                inputCode = 0x21;
+                return true;
+            case "PageDown":
+                inputCode = 0x22;
+                return true;
+            case "ArrowUp":
+                inputCode = 0x26;
+                return true;
+            case "ArrowDown":
+                inputCode = 0x28;
+                return true;
+            case "ArrowLeft":
+                inputCode = 0x25;
+                return true;
+            case "ArrowRight":
+                inputCode = 0x27;
+                return true;
+            case "PrintScreen":
+                inputCode = 0x2C;
+                return true;
+            case "ScrollLock":
+                inputCode = 0x91;
+                return true;
+            case "Pause":
+                inputCode = 0x13;
+                return true;
+            case "NumLock":
+                inputCode = 0x90;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static float[] LoadNormalizedSamplesFromFile(string filePath)
@@ -1264,6 +1754,7 @@ public sealed class SoundEngine : ISoundEngine
             string defaultClipId,
             IReadOnlyDictionary<string, SoundClip> clips,
             IReadOnlyDictionary<int, string> defaultKeyClips,
+            IReadOnlyDictionary<int, string> defaultKeyUpClips,
             bool isImported)
         {
             Id = id;
@@ -1271,6 +1762,7 @@ public sealed class SoundEngine : ISoundEngine
             DefaultClipId = defaultClipId;
             Clips = clips;
             DefaultKeyClips = defaultKeyClips;
+            DefaultKeyUpClips = defaultKeyUpClips;
             IsImported = isImported;
         }
 
@@ -1283,6 +1775,8 @@ public sealed class SoundEngine : ISoundEngine
         public IReadOnlyDictionary<string, SoundClip> Clips { get; }
 
         public IReadOnlyDictionary<int, string> DefaultKeyClips { get; }
+
+        public IReadOnlyDictionary<int, string> DefaultKeyUpClips { get; }
 
         public bool IsImported { get; }
     }
@@ -1322,5 +1816,29 @@ public sealed class SoundEngine : ISoundEngine
 
         [JsonPropertyName("defines")]
         public Dictionary<string, int[]>? Defines { get; init; }
+    }
+
+    private sealed class MechvibesSoundPackConfig
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; init; }
+
+        [JsonPropertyName("name")]
+        public string? Name { get; init; }
+
+        [JsonPropertyName("audio_file")]
+        public string? AudioFile { get; init; }
+
+        [JsonPropertyName("definition_method")]
+        public string? DefinitionMethod { get; init; }
+
+        [JsonPropertyName("definitions")]
+        public Dictionary<string, MechvibesKeyDefinition>? Definitions { get; init; }
+    }
+
+    private sealed class MechvibesKeyDefinition
+    {
+        [JsonPropertyName("timing")]
+        public List<float[]>? Timing { get; init; }
     }
 }

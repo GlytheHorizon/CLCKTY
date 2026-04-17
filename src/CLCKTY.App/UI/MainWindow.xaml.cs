@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using CLCKTY.App.Core;
 using CLCKTY.App.Services;
 
@@ -10,12 +11,22 @@ public partial class MainWindow : Window
 {
     private SettingsWindow? _settingsWindow;
     private InfoWindow? _infoWindow;
+    private readonly DispatcherTimer _visualizerTimer;
+    private readonly Random _visualizerRandom = new();
+    private readonly double[] _visualizerBaseHeights = { 24d, 40d, 64d, 80d, 48d, 56d, 30d, 22d, 44d, 68d };
 
     public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
         DataContext = viewModel;
         NavigateToSection("Dashboard");
+
+        _visualizerTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(110)
+        };
+
+        _visualizerTimer.Tick += VisualizerTimer_Tick;
     }
 
     public void ShowPanel()
@@ -52,6 +63,11 @@ public partial class MainWindow : Window
         }
 
         BeginOpenAnimation();
+
+        if (!_visualizerTimer.IsEnabled)
+        {
+            _visualizerTimer.Start();
+        }
     }
 
     private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -195,5 +211,42 @@ public partial class MainWindow : Window
         button.Foreground = isActive
             ? new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#22D883"))
             : new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#9FD8C1"));
+    }
+
+    private void VisualizerTimer_Tick(object? sender, EventArgs e)
+    {
+        var bars = new[]
+        {
+            VisualizerBar1,
+            VisualizerBar2,
+            VisualizerBar3,
+            VisualizerBar4,
+            VisualizerBar5,
+            VisualizerBar6,
+            VisualizerBar7,
+            VisualizerBar8,
+            VisualizerBar9,
+            VisualizerBar10
+        };
+
+        var intensity = 0.18d;
+
+        if (DataContext is MainViewModel viewModel)
+        {
+            intensity = viewModel.IsEnabled
+                ? Math.Clamp(viewModel.Volume / 100d, 0.2d, 1.0d)
+                : 0.08d;
+        }
+
+        for (var i = 0; i < bars.Length; i++)
+        {
+            var baseHeight = _visualizerBaseHeights[i];
+            var wobble = Math.Sin((Environment.TickCount / 140d) + i) * 6d;
+            var randomBoost = _visualizerRandom.NextDouble() * 22d * intensity;
+            var dynamicHeight = Math.Max(12d, (baseHeight * (0.45d + intensity * 0.55d)) + wobble + randomBoost);
+
+            bars[i].Height = dynamicHeight;
+            bars[i].Opacity = 0.45d + (_visualizerRandom.NextDouble() * 0.55d * Math.Max(0.15d, intensity));
+        }
     }
 }

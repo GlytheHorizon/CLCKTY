@@ -18,6 +18,8 @@ public sealed class MainViewModel : ViewModelBase
     private readonly Dictionary<KeyMappingRowViewModel, (int inputCode, KeyEventTrigger trigger)> _rowBindings = new();
     private bool _isSynchronizingMappings;
     private KeyMappingRowViewModel? _capturingInputRow;
+    private KeyMappingRowViewModel? _lastMouseCapturedRow;
+    private DateTime _lastMouseCapturedAtUtc;
 
     private SoundProfileDescriptor? _selectedProfile;
     private bool _isEnabled;
@@ -386,6 +388,8 @@ public sealed class MainViewModel : ViewModelBase
 
         var row = _capturingInputRow;
         _capturingInputRow = null;
+        _lastMouseCapturedRow = row;
+        _lastMouseCapturedAtUtc = DateTime.UtcNow;
 
         row.IsCapturingInput = false;
         row.InputCode = inputCode;
@@ -396,6 +400,15 @@ public sealed class MainViewModel : ViewModelBase
     private void BeginInputCapture(KeyMappingRowViewModel? row)
     {
         if (row is null)
+        {
+            return;
+        }
+
+        // When a mouse row captures using a click on the same button,
+        // WPF click command can fire right after capture and accidentally re-arm capture.
+        if (row.IsMouseMapping
+            && ReferenceEquals(row, _lastMouseCapturedRow)
+            && DateTime.UtcNow - _lastMouseCapturedAtUtc < TimeSpan.FromMilliseconds(250))
         {
             return;
         }

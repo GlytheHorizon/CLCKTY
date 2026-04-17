@@ -138,7 +138,10 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="#2A3932" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -160,6 +163,41 @@
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="NavRoot" Property="BorderBrush" Value="#2B7058" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ClearButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="#FFDCD7" />
+            <Setter Property="Background" Value="#2C1A18" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="BorderBrush" Value="#8A4D45" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ClearButtonRoot"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ClearButtonRoot" Property="Background" Value="#4B2622" />
+                                <Setter TargetName="ClearButtonRoot" Property="BorderBrush" Value="#D17B71" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ClearButtonRoot" Property="Opacity" Value="0.86" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ClearButtonRoot" Property="Opacity" Value="0.5" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -282,6 +320,73 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="PART_Track" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ScrollBarRepeatButtonStyle" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="Transparent" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ScrollBarThumbStyle" TargetType="Thumb">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="#2A6A53"
+                                BorderBrush="#3E8A6D"
+                                BorderThickness="1"
+                                CornerRadius="4" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Background" Value="#0E1D17" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="5"
+                                Padding="1">
+                            <Track x:Name="PART_Track"
+                                   IsDirectionReversed="True"
+                                   Focusable="False">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton x:Name="ScrollDecreaseButton"
+                                                  Command="{x:Static ScrollBar.PageUpCommand}"
+                                                  Style="{StaticResource ScrollBarRepeatButtonStyle}" />
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource ScrollBarThumbStyle}" />
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton x:Name="ScrollIncreaseButton"
+                                                  Command="{x:Static ScrollBar.PageDownCommand}"
+                                                  Style="{StaticResource ScrollBarRepeatButtonStyle}" />
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Orientation" Value="Horizontal">
+                                <Setter Property="Height" Value="10" />
+                                <Setter Property="Width" Value="Auto" />
+                                <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+                                <Setter TargetName="ScrollDecreaseButton" Property="Command" Value="{x:Static ScrollBar.PageLeftCommand}" />
+                                <Setter TargetName="ScrollIncreaseButton" Property="Command" Value="{x:Static ScrollBar.PageRightCommand}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -459,7 +564,8 @@
                 <Border Grid.Column="1"
                         Padding="7,2"
                         CornerRadius="8"
-                    Margin="0,0,6,0"
+                        Margin="0,0,6,0"
+                        VerticalAlignment="Center"
                         BorderThickness="1">
                     <Border.Style>
                         <Style TargetType="Border">
@@ -476,12 +582,82 @@
                     <TextBlock Text="{Binding SourceLabel}"
                                FontSize="10"
                                FontWeight="SemiBold"
+                               VerticalAlignment="Center"
                                Foreground="{StaticResource TextPrimaryBrush}" />
                 </Border>
 
                 <Button Grid.Column="2"
                         Width="26"
                         Height="26"
+                        VerticalAlignment="Center"
+                        ToolTip="Delete imported pack"
+                        Click="DeleteProfileOptionButton_Click"
+                        Focusable="False"
+                        IsTabStop="False">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource DangerIconButtonStyle}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsImported}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <TextBlock FontFamily="Segoe MDL2 Assets"
+                               Text="&#xE74D;"
+                               FontSize="12"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                </Button>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ProfileTableRowTemplate" DataType="{x:Type core:SoundProfileDescriptor}">
+            <Grid Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="112" />
+                    <ColumnDefinition Width="42" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="{Binding DisplayName}"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           VerticalAlignment="Center"
+                           Margin="2,0,8,0"
+                           TextTrimming="CharacterEllipsis" />
+
+                <Border Grid.Column="1"
+                        Padding="10,3"
+                        CornerRadius="12"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        BorderThickness="1">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#1C2C24" />
+                            <Setter Property="BorderBrush" Value="#356352" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsImported}" Value="True">
+                                    <Setter Property="Background" Value="#1A5A43" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding SourceLabel}"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                </Border>
+
+                <Button Grid.Column="2"
+                        Width="30"
+                        Height="30"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Right"
                         ToolTip="Delete imported pack"
                         Click="DeleteProfileOptionButton_Click"
                         Focusable="False"
@@ -665,8 +841,8 @@
                     <StackPanel Margin="16,18,16,14">
                         <StackPanel Orientation="Horizontal"
                                     VerticalAlignment="Center">
-                            <Border Width="38"
-                                    Height="38"
+                            <Border Width="44"
+                                Height="44"
                                     CornerRadius="8"
                                     Background="#123126"
                                     BorderBrush="#285A48"
@@ -674,14 +850,14 @@
                                     Margin="0,0,10,0">
                                 <Image Source="pack://siteoforigin:,,,/Assets/Icons/clckty-app.png"
                                        Stretch="Uniform"
-                                       Margin="4" />
+                                   Margin="3" />
                             </Border>
 
                             <StackPanel>
                                 <TextBlock Text="CLCKTY"
                                            Foreground="{StaticResource AccentBrush}"
-                                           FontWeight="Bold"
-                                           FontSize="16" />
+                                           FontFamily="/CLCKTY.App;component/Assets/Fonts/#Splatink PERSONAL USE"
+                                           FontSize="22" />
                                 <TextBlock Text="Sonic Laboratory"
                                            Foreground="{StaticResource TextSecondaryBrush}"
                                            FontSize="10" />
@@ -692,27 +868,83 @@
                     <StackPanel Grid.Row="1"
                                 Margin="10,0,10,10">
                         <Button x:Name="DashboardNavButton"
-                            Content="Dashboard"
                             Margin="0,0,0,6"
                             Style="{StaticResource SidebarNavButtonStyle}"
-                            Click="DashboardNavButton_Click" />
+                            Click="DashboardNavButton_Click">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="&#xE80F;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="18"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Dashboard"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
 
                         <Button x:Name="SoundProfilesNavButton"
-                            Content="Sound Profiles"
                             Margin="0,0,0,6"
                             Style="{StaticResource SidebarNavButtonStyle}"
-                            Click="SoundProfilesNavButton_Click" />
+                            Click="SoundProfilesNavButton_Click">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="&#xE189;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="18"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Sound Profiles"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
 
                         <Button x:Name="KeyMappingsNavButton"
-                            Content="Key Mappings"
                             Margin="0,0,0,6"
                             Style="{StaticResource SidebarNavButtonStyle}"
-                            Click="KeyMappingsNavButton_Click" />
+                            Click="KeyMappingsNavButton_Click">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="&#xE765;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="18"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Key Mappings"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
 
                         <Button x:Name="MouseSettingsNavButton"
-                            Content="Mouse Settings"
                             Style="{StaticResource SidebarNavButtonStyle}"
-                            Click="MouseSettingsNavButton_Click" />
+                            Click="MouseSettingsNavButton_Click">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="&#xE962;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="18"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Mouse Mappings"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
 
                         <Border Background="#15241E"
                             BorderBrush="#2A5647"
@@ -736,17 +968,6 @@
 
                     <StackPanel Grid.Row="2"
                                 Margin="10,0,10,14">
-                        <Border Background="#14251E"
-                                BorderBrush="#2B7058"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="10,8"
-                                Margin="0,0,0,8">
-                            <TextBlock Text="Precision Mode Active"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="11" />
-                        </Border>
-
                         <TextBlock Text="CLCKTY v1.0.0"
                                    Foreground="#7FA997"
                                    FontSize="10"
@@ -985,16 +1206,16 @@
                                                 VerticalAlignment="Bottom"
                                                 Height="94"
                                                 Margin="0,14,0,0">
-                                        <Border Width="12" Height="24" Background="#1F5643" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border Width="12" Height="40" Background="#2E7158" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border Width="12" Height="64" Background="#22D883" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border Width="12" Height="80" Background="#22D883" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border Width="12" Height="48" Background="#2B8E6D" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border Width="12" Height="56" Background="#2B8E6D" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border Width="12" Height="30" Background="#1F5643" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border Width="12" Height="22" Background="#1F5643" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border Width="12" Height="44" Background="#2E7158" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border Width="12" Height="68" Background="#22D883" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
+                                        <Border x:Name="VisualizerBar1" Width="12" Height="24" Background="#1F5643" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
+                                        <Border x:Name="VisualizerBar2" Width="12" Height="40" Background="#2E7158" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
+                                        <Border x:Name="VisualizerBar3" Width="12" Height="64" Background="#22D883" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
+                                        <Border x:Name="VisualizerBar4" Width="12" Height="80" Background="#22D883" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
+                                        <Border x:Name="VisualizerBar5" Width="12" Height="48" Background="#2B8E6D" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
+                                        <Border x:Name="VisualizerBar6" Width="12" Height="56" Background="#2B8E6D" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
+                                        <Border x:Name="VisualizerBar7" Width="12" Height="30" Background="#1F5643" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
+                                        <Border x:Name="VisualizerBar8" Width="12" Height="22" Background="#1F5643" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
+                                        <Border x:Name="VisualizerBar9" Width="12" Height="44" Background="#2E7158" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
+                                        <Border x:Name="VisualizerBar10" Width="12" Height="68" Background="#22D883" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
                                     </StackPanel>
 
                                     <Border Margin="0,14,0,0"
@@ -1083,7 +1304,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <TextBlock Text="Mouse Mapping"
+                                        <TextBlock Text="Mouse Mappings"
                                                    Foreground="{StaticResource TextPrimaryBrush}"
                                                    FontWeight="SemiBold"
                                                    FontSize="14" />
@@ -1145,9 +1366,9 @@
                                     Visibility="Collapsed">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="3*" />
                                     <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="1.2*" />
                                 </Grid.ColumnDefinitions>
 
                                 <Border Grid.Column="0"
@@ -1205,12 +1426,45 @@
                                                 BorderThickness="1"
                                                 CornerRadius="8"
                                                 Padding="8">
-                                            <ScrollViewer MaxHeight="300"
-                                                          VerticalScrollBarVisibility="Auto"
-                                                          HorizontalScrollBarVisibility="Disabled">
-                                                <ItemsControl ItemsSource="{Binding Profiles}"
-                                                              ItemTemplate="{StaticResource ProfileItemTemplate}" />
-                                            </ScrollViewer>
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="*" />
+                                                </Grid.RowDefinitions>
+
+                                                <Grid Margin="2,0,2,8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="112" />
+                                                        <ColumnDefinition Width="42" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBlock Text="Profile"
+                                                               Foreground="#8DC4AE"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="Source"
+                                                               Foreground="#8DC4AE"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold"
+                                                               HorizontalAlignment="Center" />
+                                                    <TextBlock Grid.Column="2"
+                                                               Text="Action"
+                                                               Foreground="#8DC4AE"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold"
+                                                               HorizontalAlignment="Center" />
+                                                </Grid>
+
+                                                <ScrollViewer Grid.Row="1"
+                                                              MaxHeight="300"
+                                                              VerticalScrollBarVisibility="Auto"
+                                                              HorizontalScrollBarVisibility="Disabled">
+                                                    <ItemsControl ItemsSource="{Binding Profiles}"
+                                                                  ItemTemplate="{StaticResource ProfileTableRowTemplate}" />
+                                                </ScrollViewer>
+                                            </Grid>
                                         </Border>
                                     </StackPanel>
                                 </Border>
@@ -1299,11 +1553,14 @@
                                         </Button>
 
                                         <Button Grid.Column="2"
-                                                Content="Clear"
                                                 Command="{Binding ClearMappingsCommand}"
                                                 Margin="8,0,0,0"
-                                                MinHeight="34"
-                                                Style="{StaticResource GlowButtonStyle}" />
+                                                Height="34"
+                                                Padding="12,0"
+                                                Style="{StaticResource ClearButtonStyle}">
+                                            <TextBlock Text="Clear"
+                                                       VerticalAlignment="Center" />
+                                        </Button>
                                     </Grid>
 
                                     <TextBlock Text="Click a key cell to capture a new keyboard input."
@@ -1364,7 +1621,7 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel>
-                                            <TextBlock Text="Mouse Settings"
+                                            <TextBlock Text="Mouse Mappings"
                                                        Foreground="{StaticResource TextPrimaryBrush}"
                                                        FontWeight="SemiBold"
                                                        FontSize="18" />
@@ -1389,11 +1646,15 @@
                                                        VerticalAlignment="Center" />
                                         </Button>
 
-                                        <ToggleButton Grid.Column="2"
-                                                      Margin="12,3,0,0"
-                                                      VerticalAlignment="Top"
-                                                      Style="{StaticResource SwitchStyle}"
-                                                      IsChecked="{Binding IsMouseSoundEnabled, Mode=TwoWay}" />
+                                        <Button Grid.Column="2"
+                                                Command="{Binding ClearMappingsCommand}"
+                                                Margin="8,0,0,0"
+                                                Height="34"
+                                                Padding="12,0"
+                                                Style="{StaticResource ClearButtonStyle}">
+                                            <TextBlock Text="Clear"
+                                                       VerticalAlignment="Center" />
+                                        </Button>
                                     </Grid>
 
                                     <TextBlock Text="Click a mapping input, then click any mouse button to capture it."
