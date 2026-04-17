@@ -9,6 +9,8 @@ public sealed class KeyboardHookService : IKeyboardHookService
     private const int WhKeyboardLl = 13;
     private const int WmKeyDown = 0x0100;
     private const int WmSysKeyDown = 0x0104;
+    private const int WmKeyUp = 0x0101;
+    private const int WmSysKeyUp = 0x0105;
 
     private readonly object _sync = new();
     private HookProc? _hookProc;
@@ -16,7 +18,9 @@ public sealed class KeyboardHookService : IKeyboardHookService
     private bool _isStarted;
     private bool _disposed;
 
-    public event EventHandler<GlobalKeyPressedEventArgs>? KeyPressed;
+    public event EventHandler<GlobalKeyPressedEventArgs>? KeyDown;
+    public event EventHandler<GlobalKeyPressedEventArgs>? KeyUp;
+    private readonly HashSet<int> _downKeys = new();
 
     public void Start()
     {
@@ -81,10 +85,32 @@ public sealed class KeyboardHookService : IKeyboardHookService
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0 && (wParam == (IntPtr)WmKeyDown || wParam == (IntPtr)WmSysKeyDown))
+        if (nCode >= 0)
         {
             var hookData = Marshal.PtrToStructure<Kbdllhookstruct>(lParam);
-            KeyPressed?.Invoke(this, new GlobalKeyPressedEventArgs((int)hookData.VkCode));
+            var vk = (int)hookData.VkCode;
+
+            if (wParam == (IntPtr)WmKeyDown || wParam == (IntPtr)WmSysKeyDown)
+            {
+                lock (_sync)
+                {
+                    if (!_downKeys.Contains(vk))
+                    {
+                        _downKeys.Add(vk);
+                        KeyDown?.Invoke(this, new GlobalKeyPressedEventArgs(vk));
+                    }
+                }
+            }
+            else if (wParam == (IntPtr)WmKeyUp || wParam == (IntPtr)WmSysKeyUp)
+            {
+                lock (_sync)
+                {
+                    if (_downKeys.Remove(vk))
+                    {
+                        KeyUp?.Invoke(this, new GlobalKeyPressedEventArgs(vk));
+                    }
+                }
+            }
         }
 
         return CallNextHookEx(_hookHandle, nCode, wParam, lParam);

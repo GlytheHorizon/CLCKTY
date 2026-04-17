@@ -40,7 +40,8 @@ public partial class App : Wpf.Application
 
 		_mainViewModel.SoundEnabledChanged += MainViewModel_SoundEnabledChanged;
 
-		_keyboardHookService.KeyPressed += KeyboardHookService_KeyPressed;
+		_keyboardHookService.KeyDown += KeyboardHookService_KeyDown;
+		_keyboardHookService.KeyUp += KeyboardHookService_KeyUp;
 		_keyboardHookService.Start();
 
 		var launchInTray = e.Args.Any(arg => string.Equals(arg, "--tray", StringComparison.OrdinalIgnoreCase));
@@ -56,9 +57,14 @@ public partial class App : Wpf.Application
 		base.OnExit(e);
 	}
 
-	private void KeyboardHookService_KeyPressed(object? sender, GlobalKeyPressedEventArgs e)
+	private void KeyboardHookService_KeyDown(object? sender, GlobalKeyPressedEventArgs e)
 	{
-		_soundEngine?.PlayForKey(e.VirtualKey);
+		_soundEngine?.StartHoldForKey(e.VirtualKey);
+	}
+
+	private void KeyboardHookService_KeyUp(object? sender, GlobalKeyPressedEventArgs e)
+	{
+		_soundEngine?.ReleaseForKey(e.VirtualKey);
 	}
 
 	private void MainViewModel_SoundEnabledChanged(object? sender, bool isEnabled)
@@ -158,7 +164,8 @@ public partial class App : Wpf.Application
 
 		if (_keyboardHookService is not null)
 		{
-			_keyboardHookService.KeyPressed -= KeyboardHookService_KeyPressed;
+			_keyboardHookService.KeyDown -= KeyboardHookService_KeyDown;
+			_keyboardHookService.KeyUp -= KeyboardHookService_KeyUp;
 			_keyboardHookService.Dispose();
 			_keyboardHookService = null;
 		}

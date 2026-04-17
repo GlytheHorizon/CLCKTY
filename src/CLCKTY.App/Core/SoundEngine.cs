@@ -33,6 +33,8 @@ public sealed class SoundEngine : ISoundEngine
     private readonly Dictionary<string, LoadedSoundProfile> _profiles =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<int, string> _keyMappings = new();
+    private readonly HashSet<int> _heldKeys = new();
+    private readonly Dictionary<int, CachedSound> _pendingSecondHalf = new();
 
     private bool _isEnabled = true;
     private float _masterVolume = 0.75f;
@@ -226,6 +228,110 @@ public sealed class SoundEngine : ISoundEngine
             }
 
             _mixer.AddMixerInput(provider);
+        }
+    }
+
+    public void StartHoldForKey(int virtualKey)
+    {
+        LoadedSoundProfile? profile;
+        SoundClip? clip;
+        float volume;
+
+        lock (_sync)
+        {
+            if (_disposed || !_isEnabled || !_profiles.TryGetValue(_activeProfileId, out profile) || profile is null)
+            {
+                return;
+            }
+
+            if (_heldKeys.Contains(virtualKey))
+            {
+                return;
+            }
+
+            var clipId = ResolveClipForKey(profile, virtualKey);
+            if (!profile.Clips.TryGetValue(clipId, out clip))
+            {
+                clip = profile.Clips[profile.DefaultClipId];
+            }
+
+            volume = _masterVolume;
+            _heldKeys.Add(virtualKey);
+        }
+
+        // Play first half immediately and stash second half for release
+        try
+        {
+            var audio = clip!.Sound.AudioData;
+            var total = audio.Length;
+            var half = Math.Max(1, total / 2);
+
+            var firstProvider = new VolumeSampleProvider(new PartialCachedSoundSampleProvider(clip.Sound, 0, half)) { Volume = volume };
+
+            lock (_sync)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                // prepare and store second half
+                if (half < total)
+                {
+                    var remaining = new float[total - half];
+                    Array.Copy(audio, half, remaining, 0, remaining.Length);
+                    _pendingSecondHalf[virtualKey] = new CachedSound(clip.Sound.WaveFormat, remaining);
+                }
+
+                _mixer.AddMixerInput(firstProvider);
+            }
+        }
+        catch (Exception)
+        {
+            // fall back to playing whole clip on error
+            PlayForKey(virtualKey);
+        }
+    }
+
+    public void ReleaseForKey(int virtualKey)
+    {
+        CachedSound? second = null;
+
+        lock (_sync)
+        {
+            if (!_heldKeys.Remove(virtualKey))
+            {
+                return;
+            }
+
+            if (_pendingSecondHalf.TryGetValue(virtualKey, out var cached))
+            {
+                second = cached;
+                _pendingSecondHalf.Remove(virtualKey);
+            }
+        }
+
+        if (second is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var provider = new VolumeSampleProvider(new CachedSoundSampleProvider(second)) { Volume = _masterVolume };
+            lock (_sync)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _mixer.AddMixerInput(provider);
+            }
+        }
+        catch (Exception)
+        {
+            // ignore
         }
     }
 

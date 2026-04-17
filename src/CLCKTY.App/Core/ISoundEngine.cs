@@ -21,6 +21,8 @@ public interface ISoundEngine : IDisposable
     void ClearMappings();
 
     void PlayForKey(int virtualKey);
+    void StartHoldForKey(int virtualKey);
+    void ReleaseForKey(int virtualKey);
 
     Task<string?> ImportSoundPackAsync(string folderPath, CancellationToken cancellationToken = default);
 }
