@@ -47,6 +47,8 @@ public sealed class MainViewModel : ViewModelBase
         KeyboardMappings = new ObservableCollection<KeyMappingRowViewModel>();
         MouseMappings = new ObservableCollection<KeyMappingRowViewModel>();
         ActivityFeed = new ObservableCollection<string>();
+        KeyboardActivityFeed = new ObservableCollection<string>();
+        MouseActivityFeed = new ObservableCollection<string>();
 
         IsEnabled = _soundEngine.IsEnabled;
         Volume = _soundEngine.MasterVolume * 100d;
@@ -87,6 +89,10 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<KeyMappingRowViewModel> MouseMappings { get; }
 
     public ObservableCollection<string> ActivityFeed { get; }
+
+    public ObservableCollection<string> KeyboardActivityFeed { get; }
+
+    public ObservableCollection<string> MouseActivityFeed { get; }
 
     public ICommand ImportSoundPackCommand { get; }
 
@@ -447,6 +453,8 @@ public sealed class MainViewModel : ViewModelBase
         var clipDisplayName = _soundEngine.GetPlaybackClipDisplayName(inputCode, trigger);
 
         LastTriggeredPreview = $"{inputLabel} = {clipDisplayName}";
+        var triggerLabel = trigger == KeyEventTrigger.Down ? "press" : "release";
+        AppendActivity($"{(isMouseInput ? "Mouse" : "Keyboard")} {triggerLabel}: {inputLabel} = {clipDisplayName}", isMouseInput);
 
         var intensity = Math.Clamp(Volume / 100d, 0.2d, 1.0d);
         InputTriggered?.Invoke(this, new InputTriggeredPreviewEventArgs(inputCode, trigger, intensity));
@@ -793,18 +801,53 @@ public sealed class MainViewModel : ViewModelBase
         StatusText = "Custom key and mouse mappings cleared.";
     }
 
-    private void AppendActivity(string message)
+    private void AppendActivity(string message, bool? isMouseActivity = null)
     {
         if (string.IsNullOrWhiteSpace(message))
         {
             return;
         }
 
-        ActivityFeed.Insert(0, $"{DateTime.Now:HH:mm:ss}  {message}");
+        var entry = $"{DateTime.Now:HH:mm:ss}  {message}";
 
-        while (ActivityFeed.Count > 40)
+        ActivityFeed.Insert(0, entry);
+        TrimActivityFeed(ActivityFeed);
+
+        if (isMouseActivity == true)
         {
-            ActivityFeed.RemoveAt(ActivityFeed.Count - 1);
+            MouseActivityFeed.Insert(0, entry);
+            TrimActivityFeed(MouseActivityFeed);
+            return;
+        }
+
+        if (isMouseActivity == false)
+        {
+            KeyboardActivityFeed.Insert(0, entry);
+            TrimActivityFeed(KeyboardActivityFeed);
+            return;
+        }
+
+        var lowerMessage = message.ToLowerInvariant();
+
+        if (lowerMessage.Contains("mouse", StringComparison.Ordinal))
+        {
+            MouseActivityFeed.Insert(0, entry);
+            TrimActivityFeed(MouseActivityFeed);
+        }
+
+        if (lowerMessage.Contains("keyboard", StringComparison.Ordinal)
+            || lowerMessage.Contains("key", StringComparison.Ordinal))
+        {
+            KeyboardActivityFeed.Insert(0, entry);
+            TrimActivityFeed(KeyboardActivityFeed);
+        }
+    }
+
+    private static void TrimActivityFeed(ObservableCollection<string> feed)
+    {
+        while (feed.Count > 40)
+        {
+            feed.RemoveAt(feed.Count - 1);
         }
     }
 

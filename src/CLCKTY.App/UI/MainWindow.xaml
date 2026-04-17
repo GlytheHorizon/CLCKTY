@@ -32,6 +32,22 @@
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E8FFF5" />
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9FD8C1" />
         <SolidColorBrush x:Key="PopupBackgroundBrush" Color="#0E1D17" />
+        <FontFamily x:Key="SidebarFontFamily">/CLCKTY.App;component/Assets/Fonts/#Rajdhani</FontFamily>
+        <FontFamily x:Key="DashboardFontFamily">/CLCKTY.App;component/Assets/Fonts/#Rajdhani</FontFamily>
+        <FontFamily x:Key="DashboardHeadingFontFamily">/CLCKTY.App;component/Assets/Fonts/#Anton</FontFamily>
+
+        <Style x:Key="ModernCardStyle" TargetType="Border">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#050F0C"
+                                      BlurRadius="22"
+                                      ShadowDepth="0"
+                                      Opacity="0.55" />
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <Style x:Key="GlowButtonStyle" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
@@ -136,12 +152,13 @@
         <Style x:Key="SidebarNavButtonStyle" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="#2A3932" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="12,11" />
             <Setter Property="MinHeight" Value="44" />
             <Setter Property="FontSize" Value="16" />
             <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontFamily" Value="{StaticResource SidebarFontFamily}" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -761,9 +778,9 @@
         <DataTemplate x:Key="MappingRowTemplate" DataType="{x:Type ui:KeyMappingRowViewModel}">
             <Grid Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="210" />
+                    <ColumnDefinition Width="190" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="46" />
+                    <ColumnDefinition Width="40" />
                     <ColumnDefinition Width="34" />
                     <ColumnDefinition Width="34" />
                 </Grid.ColumnDefinitions>
@@ -774,11 +791,11 @@
                         CommandParameter="{Binding}"
                         Focusable="False"
                         IsTabStop="False"
-                        MinHeight="34">
+                        MinHeight="36">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource GlowButtonStyle}">
                             <Setter Property="HorizontalContentAlignment" Value="Left" />
-                            <Setter Property="Padding" Value="10,8" />
+                            <Setter Property="Padding" Value="14,8" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsCapturingInput}" Value="True">
                                     <Setter Property="Background" Value="{StaticResource AccentBrush}" />
@@ -796,14 +813,15 @@
                           SelectedValuePath="Id"
                           SelectedValue="{Binding SelectedClipId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                           ItemContainerStyle="{StaticResource MappingSoundOptionItemStyle}"
-                                                    Margin="10,0,0,0" />
+                                                    Margin="8,0,0,0" />
 
                 <Button Grid.Column="2"
                         ToolTip="Upload sound for this mapping"
                         Command="{Binding DataContext.ImportMappingAudioCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         CommandParameter="{Binding}"
-                                                Margin="10,0,0,0"
+                                Margin="6,0,0,0"
                         MinHeight="34"
+                    Padding="0"
                         Style="{StaticResource GlowButtonStyle}">
                     <TextBlock FontFamily="Segoe MDL2 Assets"
                                Text="&#xE898;"
@@ -816,7 +834,7 @@
                                                 ToolTip="Delete selected sound choice"
                                                 Command="{Binding DataContext.RemoveRowSoundChoiceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 CommandParameter="{Binding}"
-                                                Margin="8,0,0,0"
+                        Margin="6,0,0,0"
                                                 MinHeight="34"
                                                 Padding="0"
                                                 Style="{StaticResource DangerIconButtonStyle}">
@@ -831,16 +849,19 @@
                         Content="-"
                         Command="{Binding DataContext.RemoveMappingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         CommandParameter="{Binding}"
-                        Margin="8,0,0,0"
+                            Margin="6,0,0,0"
+                            Width="30"
                         MinHeight="34"
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
                         Style="{StaticResource GlowButtonStyle}" />
             </Grid>
         </DataTemplate>
     </Window.Resources>
 
-    <Border CornerRadius="22"
+        <Border CornerRadius="0"
             BorderBrush="{StaticResource PanelBorderBrush}"
-            BorderThickness="1"
+            BorderThickness="0"
             Background="{StaticResource PanelBackground}"
             SnapsToDevicePixels="True">
         <Border.Effect>
@@ -856,10 +877,10 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0"
+                <Border Grid.Column="0"
                     Background="#131313"
-                    BorderBrush="#1D3F32"
-                    BorderThickness="0,0,1,0">
+                    BorderBrush="Transparent"
+                    BorderThickness="0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -887,7 +908,7 @@
                                            Foreground="{StaticResource AccentBrush}"
                                            FontFamily="/CLCKTY.App;component/Assets/Fonts/#Splatink PERSONAL USE"
                                            FontSize="22" />
-                                <TextBlock Text="Sonic Laboratory"
+                                <TextBlock Text="Your custom virtual keyboard sound"
                                            Foreground="{StaticResource TextSecondaryBrush}"
                                            FontSize="10" />
                             </StackPanel>
@@ -1019,7 +1040,8 @@
                 </Grid>
             </Border>
 
-            <Grid Grid.Column="1">
+            <Grid Grid.Column="1"
+                TextElement.FontFamily="{StaticResource DashboardFontFamily}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
@@ -1027,35 +1049,27 @@
 
                 <Border Grid.Row="0"
                         Background="#0F1A16"
-                        BorderBrush="#1D3F32"
-                        BorderThickness="0,0,0,1"
+                        BorderBrush="Transparent"
+                        BorderThickness="0"
                         Padding="14,10"
                         MouseLeftButtonDown="Header_MouseLeftButtonDown">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0"
-                                    VerticalAlignment="Center"
-                                    Margin="0,0,12,0">
-                            <TextBlock Text="Typing Performance Dashboard"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                   FontSize="11"
-                                   FontWeight="SemiBold" />
-                        </StackPanel>
-
                         <Border x:Name="TestTypingPreviewCard"
-                                Grid.Column="1"
+                                Grid.Column="0"
                                 Height="34"
+                                Width="520"
+                                HorizontalAlignment="Left"
                                 Background="#152520"
-                                BorderBrush="#2A5647"
-                                BorderThickness="1"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
                                 CornerRadius="8"
                                 VerticalAlignment="Center"
-                                Margin="0,0,12,0"
+                                Margin="0,0,18,0"
                                 Padding="10,0">
                             <StackPanel Orientation="Horizontal"
                                         VerticalAlignment="Center">
@@ -1075,7 +1089,7 @@
                             </StackPanel>
                         </Border>
 
-                        <StackPanel Grid.Column="2"
+                        <StackPanel Grid.Column="1"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Center">
                             <Button ToolTip="Information"
@@ -1117,7 +1131,8 @@
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="16,14,16,16">
-                        <StackPanel x:Name="DashboardSectionPanel">
+                        <StackPanel x:Name="DashboardSectionPanel"
+                                    TextElement.FontFamily="{StaticResource DashboardFontFamily}">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="2*" />
@@ -1125,11 +1140,9 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <Border Grid.Column="0"
+                                <Border Grid.Column="0"
+                                    Style="{StaticResource ModernCardStyle}"
                                     Background="#161D1B"
-                                    BorderBrush="#27483D"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
                                     Padding="14">
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -1142,6 +1155,7 @@
 
                                     <StackPanel>
                                         <TextBlock Text="Current Configuration"
+                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                    FontSize="10"
                                                    Foreground="#7EB09A"
                                                    FontWeight="SemiBold" />
@@ -1258,10 +1272,8 @@
                             </Border>
 
                             <Border Grid.Column="2"
+                                    Style="{StaticResource ModernCardStyle}"
                                     Background="#111917"
-                                    BorderBrush="#27483D"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
                                     Padding="14">
                                 <StackPanel>
                                     <Grid>
@@ -1270,9 +1282,10 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <TextBlock Text="Live Input Visualizer"
-                                                   FontSize="10"
-                                                   Foreground="#7EB09A"
+                                        <TextBlock Text="Live Input Keycap"
+                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
+                                                   FontSize="14"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
                                                    FontWeight="SemiBold" />
                                         <TextBlock Grid.Column="1"
                                                    Text="&#xE9D9;"
@@ -1281,26 +1294,75 @@
                                                    FontSize="13" />
                                     </Grid>
 
-                                    <StackPanel Orientation="Horizontal"
+                                    <TextBlock Text="Press any key or mouse button."
+                                               Foreground="#8DC4AE"
+                                               FontSize="11"
+                                               Margin="0,4,0,0" />
+
+                                    <Grid Height="118"
+                                          Margin="0,12,0,0">
+                                        <Border x:Name="VisualizerKeycapShadow"
+                                                Width="114"
+                                                Height="84"
+                                                CornerRadius="8"
+                                                Background="#06110D"
+                                                Opacity="0.35"
                                                 VerticalAlignment="Bottom"
-                                                Height="94"
-                                                Margin="0,14,0,0">
-                                        <Border x:Name="VisualizerBar1" Width="12" Height="24" Background="#1F5643" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border x:Name="VisualizerBar2" Width="12" Height="40" Background="#2E7158" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border x:Name="VisualizerBar3" Width="12" Height="64" Background="#22D883" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border x:Name="VisualizerBar4" Width="12" Height="80" Background="#22D883" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border x:Name="VisualizerBar5" Width="12" Height="48" Background="#2B8E6D" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border x:Name="VisualizerBar6" Width="12" Height="56" Background="#2B8E6D" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border x:Name="VisualizerBar7" Width="12" Height="30" Background="#1F5643" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border x:Name="VisualizerBar8" Width="12" Height="22" Background="#1F5643" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border x:Name="VisualizerBar9" Width="12" Height="44" Background="#2E7158" Margin="0,0,5,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                        <Border x:Name="VisualizerBar10" Width="12" Height="68" Background="#22D883" VerticalAlignment="Bottom" CornerRadius="2,2,0,0" />
-                                    </StackPanel>
+                                                HorizontalAlignment="Center"
+                                                Margin="0,0,0,6" />
+
+                                        <Border x:Name="VisualizerKeycap"
+                                                Width="114"
+                                                Height="84"
+                                                CornerRadius="8"
+                                                Background="#1D3329"
+                                                VerticalAlignment="Top"
+                                                HorizontalAlignment="Center"
+                                                BorderBrush="#2C5A47"
+                                                BorderThickness="1"
+                                                Padding="0,8,0,0"
+                                                RenderTransformOrigin="0.5,0.5">
+                                            <Border.RenderTransform>
+                                                <TransformGroup>
+                                                    <ScaleTransform x:Name="VisualizerKeycapScale"
+                                                                    ScaleX="1"
+                                                                    ScaleY="1" />
+                                                    <TranslateTransform x:Name="VisualizerKeycapTranslate"
+                                                                        Y="0" />
+                                                </TransformGroup>
+                                            </Border.RenderTransform>
+                                            <Border.Effect>
+                                                <DropShadowEffect Color="#040B08"
+                                                                  BlurRadius="14"
+                                                                  ShadowDepth="4"
+                                                                  Opacity="0.55" />
+                                            </Border.Effect>
+                                            <Grid>
+                                                <TextBlock x:Name="VisualizerKeycapLabel"
+                                                           Text="A"
+                                                           FontFamily="{StaticResource DashboardHeadingFontFamily}"
+                                                           FontSize="30"
+                                                           Foreground="#EEFFF8"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Top"
+                                                           Margin="0,0,0,8" />
+                                                <TextBlock x:Name="VisualizerKeycapState"
+                                                           Text="READY"
+                                                           Foreground="#9FD8C1"
+                                                           FontFamily="{StaticResource DashboardFontFamily}"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Bottom"
+                                                           Margin="0,0,0,8" />
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
 
                                     <Border Margin="0,14,0,0"
                                             Background="#172320"
-                                            BorderBrush="#2A5647"
-                                            BorderThickness="1"
+                                            BorderBrush="Transparent"
+                                            BorderThickness="0"
                                             CornerRadius="8"
                                             Padding="10,8">
                                         <StackPanel>
@@ -1326,11 +1388,9 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <Border Grid.Column="0"
+                                <Border Grid.Column="0"
+                                    Style="{StaticResource ModernCardStyle}"
                                     Background="#151E1B"
-                                    BorderBrush="#27483D"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
                                     Padding="12">
                                 <StackPanel>
                                     <Grid>
@@ -1340,6 +1400,7 @@
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock Text="Key Mapping"
+                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                    Foreground="{StaticResource TextPrimaryBrush}"
                                                    FontWeight="SemiBold"
                                                    FontSize="14" />
@@ -1370,11 +1431,9 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Column="2"
+                                <Border Grid.Column="2"
+                                    Style="{StaticResource ModernCardStyle}"
                                     Background="#151E1B"
-                                    BorderBrush="#27483D"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
                                     Padding="12">
                                 <StackPanel>
                                     <Grid>
@@ -1384,6 +1443,7 @@
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock Text="Mouse Mappings"
+                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                    Foreground="{StaticResource TextPrimaryBrush}"
                                                    FontWeight="SemiBold"
                                                    FontSize="14" />
@@ -1415,18 +1475,12 @@
                             </Border>
                         </Grid>
 
-                        <Button Content="Clear Custom Mappings"
-                                Margin="0,12,0,0"
-                                HorizontalAlignment="Left"
-                                Command="{Binding ClearMappingsCommand}"
-                                Style="{StaticResource GlowButtonStyle}" />
-
                         <Border Margin="0,12,0,0"
+                            Style="{StaticResource ModernCardStyle}"
                                 Background="#0F1E18"
-                                CornerRadius="12"
                                 Padding="12"
-                                BorderBrush="{StaticResource CardBorderBrush}"
-                                BorderThickness="1">
+                            BorderBrush="Transparent"
+                            BorderThickness="0">
                             <StackPanel>
                                 <TextBlock Text="{Binding StatusText}"
                                            Foreground="{StaticResource TextPrimaryBrush}"
@@ -1442,6 +1496,7 @@
                         </StackPanel>
 
                         <StackPanel x:Name="SoundProfilesSectionPanel"
+                                    TextElement.FontFamily="{StaticResource DashboardFontFamily}"
                                     Visibility="Collapsed">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -1451,13 +1506,12 @@
                                 </Grid.ColumnDefinitions>
 
                                 <Border Grid.Column="0"
+                                        Style="{StaticResource ModernCardStyle}"
                                         Background="#151E1B"
-                                        BorderBrush="#27483D"
-                                        BorderThickness="1"
-                                        CornerRadius="12"
                                         Padding="14">
                                     <StackPanel>
                                         <TextBlock Text="Sound Profiles"
+                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                    Foreground="{StaticResource TextPrimaryBrush}"
                                                    FontWeight="SemiBold"
                                                    FontSize="18" />
@@ -1537,8 +1591,8 @@
                                                    FontWeight="SemiBold" />
 
                                         <Border Background="#111917"
-                                                BorderBrush="#27483D"
-                                                BorderThickness="1"
+                                            BorderBrush="Transparent"
+                                            BorderThickness="0"
                                                 CornerRadius="8"
                                                 Padding="8">
                                             <Grid>
@@ -1580,7 +1634,7 @@
                                                 </Grid>
 
                                                 <ScrollViewer Grid.Row="1"
-                                                              MaxHeight="300"
+                                                              MaxHeight="232"
                                                               VerticalScrollBarVisibility="Auto"
                                                               HorizontalScrollBarVisibility="Disabled">
                                                     <ItemsControl ItemsSource="{Binding Profiles}"
@@ -1592,13 +1646,12 @@
                                 </Border>
 
                                 <Border Grid.Column="2"
+                                        Style="{StaticResource ModernCardStyle}"
                                         Background="#111917"
-                                        BorderBrush="#27483D"
-                                        BorderThickness="1"
-                                        CornerRadius="12"
                                         Padding="12">
                                     <StackPanel>
                                         <TextBlock Text="Live Activity"
+                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                    Foreground="{StaticResource TextPrimaryBrush}"
                                                    FontWeight="SemiBold" />
                                         <TextBlock Text="Inspired by Mechvibes system logs"
@@ -1607,11 +1660,11 @@
                                                    Margin="0,4,0,10" />
 
                                         <Border Background="#172320"
-                                                BorderBrush="#2A5647"
-                                                BorderThickness="1"
+                                                BorderBrush="Transparent"
+                                                BorderThickness="0"
                                                 CornerRadius="8"
                                                 Padding="8">
-                                            <ScrollViewer Height="330"
+                                            <ScrollViewer Height="228"
                                                           VerticalScrollBarVisibility="Auto"
                                                           HorizontalScrollBarVisibility="Disabled">
                                                 <ItemsControl ItemsSource="{Binding ActivityFeed}">
@@ -1634,11 +1687,10 @@
                         </StackPanel>
 
                         <StackPanel x:Name="KeyMappingsSectionPanel"
+                            TextElement.FontFamily="{StaticResource DashboardFontFamily}"
                                     Visibility="Collapsed">
                             <Border Background="#151E1B"
-                                    BorderBrush="#27483D"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
+                                Style="{StaticResource ModernCardStyle}"
                                     Padding="14">
                                 <StackPanel>
                                     <Grid>
@@ -1650,6 +1702,7 @@
 
                                         <StackPanel>
                                             <TextBlock Text="Key Mappings"
+                                                       FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                        Foreground="{StaticResource TextPrimaryBrush}"
                                                        FontWeight="SemiBold"
                                                        FontSize="18" />
@@ -1698,20 +1751,19 @@
                             </Border>
 
                             <Border Margin="0,12,0,0"
+                                    Style="{StaticResource ModernCardStyle}"
                                     Background="#111917"
-                                    BorderBrush="#27483D"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
                                     Padding="12">
                                 <StackPanel>
                                     <TextBlock Text="Recent Activity"
+                                               FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                Foreground="{StaticResource TextPrimaryBrush}"
                                                FontWeight="SemiBold" />
                                     <ScrollViewer Height="170"
                                                   Margin="0,8,0,0"
                                                   VerticalScrollBarVisibility="Auto"
                                                   HorizontalScrollBarVisibility="Disabled">
-                                        <ItemsControl ItemsSource="{Binding ActivityFeed}">
+                                        <ItemsControl ItemsSource="{Binding KeyboardActivityFeed}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding}"
@@ -1729,11 +1781,10 @@
                         </StackPanel>
 
                         <StackPanel x:Name="MouseSettingsSectionPanel"
+                            TextElement.FontFamily="{StaticResource DashboardFontFamily}"
                                     Visibility="Collapsed">
                             <Border Background="#151E1B"
-                                    BorderBrush="#27483D"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
+                                Style="{StaticResource ModernCardStyle}"
                                     Padding="14">
                                 <StackPanel>
                                     <Grid>
@@ -1745,6 +1796,7 @@
 
                                         <StackPanel>
                                             <TextBlock Text="Mouse Mappings"
+                                                       FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                        Foreground="{StaticResource TextPrimaryBrush}"
                                                        FontWeight="SemiBold"
                                                        FontSize="18" />
@@ -1793,20 +1845,19 @@
                             </Border>
 
                             <Border Margin="0,12,0,0"
+                                    Style="{StaticResource ModernCardStyle}"
                                     Background="#111917"
-                                    BorderBrush="#27483D"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
                                     Padding="12">
                                 <StackPanel>
                                     <TextBlock Text="Recent Activity"
+                                               FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                Foreground="{StaticResource TextPrimaryBrush}"
                                                FontWeight="SemiBold" />
                                     <ScrollViewer Height="170"
                                                   Margin="0,8,0,0"
                                                   VerticalScrollBarVisibility="Auto"
                                                   HorizontalScrollBarVisibility="Disabled">
-                                        <ItemsControl ItemsSource="{Binding ActivityFeed}">
+                                        <ItemsControl ItemsSource="{Binding MouseActivityFeed}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding}"

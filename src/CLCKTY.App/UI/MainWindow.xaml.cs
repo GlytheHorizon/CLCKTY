@@ -10,8 +10,6 @@ public partial class MainWindow : Window
 {
     private SettingsWindow? _settingsWindow;
     private InfoWindow? _infoWindow;
-    private readonly Random _visualizerRandom = new();
-    private readonly double[] _visualizerBaseHeights = { 24d, 40d, 64d, 80d, 48d, 56d, 30d, 22d, 44d, 68d };
 
     public MainWindow(MainViewModel viewModel)
     {
@@ -55,7 +53,7 @@ public partial class MainWindow : Window
         }
 
         BeginOpenAnimation();
-        ResetVisualizerBars();
+        InitializeVisualizerKeycap();
     }
 
     private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -206,7 +204,7 @@ public partial class MainWindow : Window
         Dispatcher.Invoke(() =>
         {
             AnimateTestTypingPreview();
-            PulseVisualizer(e.Intensity);
+            AnimateInputKeycap(e);
         });
     }
 
@@ -239,64 +237,92 @@ public partial class MainWindow : Window
         TestTypingPreviewCard.BeginAnimation(OpacityProperty, opacityPulse, HandoffBehavior.SnapshotAndReplace);
     }
 
-    private System.Windows.Controls.Border[] GetVisualizerBars()
+    private void InitializeVisualizerKeycap()
     {
-        return new[]
+        VisualizerKeycapLabel.Text = "A";
+        VisualizerKeycapState.Text = "READY";
+        VisualizerKeycapShadow.Opacity = 0.35d;
+    }
+
+    private void AnimateInputKeycap(InputTriggeredPreviewEventArgs args)
+    {
+        var isPressed = args.Trigger == KeyEventTrigger.Down;
+        var translateY = isPressed ? 7d : 0d;
+        var scale = isPressed ? 0.965d : 1d;
+        var shadowOpacity = isPressed ? 0.18d : 0.35d;
+        var animationDuration = TimeSpan.FromMilliseconds(isPressed ? 78 : 118);
+
+        VisualizerKeycapLabel.Text = BuildKeycapLabel(args.InputCode);
+        VisualizerKeycapState.Text = isPressed ? "PRESSED" : "RELEASED";
+
+        var easing = new CubicEase
         {
-            VisualizerBar1,
-            VisualizerBar2,
-            VisualizerBar3,
-            VisualizerBar4,
-            VisualizerBar5,
-            VisualizerBar6,
-            VisualizerBar7,
-            VisualizerBar8,
-            VisualizerBar9,
-            VisualizerBar10
+            EasingMode = isPressed ? EasingMode.EaseOut : EasingMode.EaseInOut
         };
+
+        var keycapMoveAnimation = new DoubleAnimation
+        {
+            To = translateY,
+            Duration = animationDuration,
+            EasingFunction = easing
+        };
+
+        var keycapScaleAnimation = new DoubleAnimation
+        {
+            To = scale,
+            Duration = animationDuration,
+            EasingFunction = easing
+        };
+
+        var shadowOpacityAnimation = new DoubleAnimation
+        {
+            To = shadowOpacity,
+            Duration = animationDuration,
+            EasingFunction = easing
+        };
+
+        VisualizerKeycapTranslate.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, keycapMoveAnimation, HandoffBehavior.SnapshotAndReplace);
+        VisualizerKeycapScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, keycapScaleAnimation, HandoffBehavior.SnapshotAndReplace);
+        VisualizerKeycapScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, keycapScaleAnimation, HandoffBehavior.SnapshotAndReplace);
+        VisualizerKeycapShadow.BeginAnimation(OpacityProperty, shadowOpacityAnimation, HandoffBehavior.SnapshotAndReplace);
     }
 
-    private void ResetVisualizerBars()
+    private static string BuildKeycapLabel(int inputCode)
     {
-        var bars = GetVisualizerBars();
-
-        for (var i = 0; i < bars.Length; i++)
+        if (InputBindingCode.IsMouseCode(inputCode))
         {
-            bars[i].Height = _visualizerBaseHeights[i];
-            bars[i].Opacity = 0.55d;
+            return inputCode switch
+            {
+                InputBindingCode.MouseLeft => "LMB",
+                InputBindingCode.MouseRight => "RMB",
+                InputBindingCode.MouseMiddle => "MMB",
+                InputBindingCode.MouseX1 => "X1",
+                InputBindingCode.MouseX2 => "X2",
+                _ => "MOUSE"
+            };
         }
-    }
 
-    private void PulseVisualizer(double intensity)
-    {
-        var bars = GetVisualizerBars();
-        var normalizedIntensity = Math.Clamp(intensity, 0.15d, 1.0d);
-
-        for (var i = 0; i < bars.Length; i++)
+        if (inputCode >= 0x30 && inputCode <= 0x39)
         {
-            var bar = bars[i];
-            var baseHeight = _visualizerBaseHeights[i];
-            var randomBoost = _visualizerRandom.NextDouble() * 34d * normalizedIntensity;
-            var waveBoost = (Math.Sin((Environment.TickCount / 85d) + i) + 1d) * 7d * normalizedIntensity;
-            var peakHeight = Math.Max(12d, baseHeight + randomBoost + waveBoost);
-
-            var pulse = new DoubleAnimation
-            {
-                To = peakHeight,
-                Duration = TimeSpan.FromMilliseconds(95),
-                AutoReverse = true,
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-
-            var opacityPulse = new DoubleAnimation
-            {
-                To = 0.85d + (_visualizerRandom.NextDouble() * 0.15d),
-                Duration = TimeSpan.FromMilliseconds(95),
-                AutoReverse = true
-            };
-
-            bar.BeginAnimation(HeightProperty, pulse, HandoffBehavior.SnapshotAndReplace);
-            bar.BeginAnimation(OpacityProperty, opacityPulse, HandoffBehavior.SnapshotAndReplace);
+            return ((char)inputCode).ToString();
         }
+
+        if (inputCode >= 0x41 && inputCode <= 0x5A)
+        {
+            return ((char)inputCode).ToString();
+        }
+
+        return inputCode switch
+        {
+            0x20 => "SPACE",
+            0x0D => "ENTER",
+            0x08 => "BKSP",
+            0x09 => "TAB",
+            0x10 => "SHIFT",
+            0x11 => "CTRL",
+            0x12 => "ALT",
+            0x1B => "ESC",
+            _ => $"VK{inputCode:X2}"
+        };
     }
 }

@@ -28,6 +28,9 @@
 
   <ItemGroup>
     <Resource Include="Assets\Fonts\Splatink.otf" />
+    <Resource Include="Assets\Fonts\Rajdhani-Regular.ttf" />
+    <Resource Include="Assets\Fonts\Rajdhani-SemiBold.ttf" />
+    <Resource Include="Assets\Fonts\Anton-Regular.ttf" />
   </ItemGroup>
 
 </Project>

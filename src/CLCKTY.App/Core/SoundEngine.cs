@@ -778,16 +778,37 @@ public sealed class SoundEngine : ISoundEngine
             var clipId = ResolveClipForKey(profile, inputCode, trigger);
             if (profile.Clips.TryGetValue(clipId, out var clip))
             {
-                return clip.DisplayName;
+                return BuildPlaybackDisplayName(profile, clip);
             }
 
             if (profile.Clips.TryGetValue(profile.DefaultClipId, out var defaultClip))
             {
-                return defaultClip.DisplayName;
+                return BuildPlaybackDisplayName(profile, defaultClip);
             }
 
             return "Default";
         }
+    }
+
+    private static string BuildPlaybackDisplayName(LoadedSoundProfile profile, SoundClip clip)
+    {
+        if (string.Equals(clip.SourceLabel, "Uploaded", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Uploaded: {clip.DisplayName}";
+        }
+
+        if (clip.Id.StartsWith("seg", StringComparison.OrdinalIgnoreCase)
+            || clip.DisplayName.StartsWith("Segment ", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{profile.DisplayName} ({clip.SourceLabel})";
+        }
+
+        if (!string.Equals(clip.SourceLabel, "Stock", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{clip.DisplayName} ({clip.SourceLabel})";
+        }
+
+        return clip.DisplayName;
     }
 
     private string ResolveClipForKey(LoadedSoundProfile profile, int virtualKey, KeyEventTrigger trigger)

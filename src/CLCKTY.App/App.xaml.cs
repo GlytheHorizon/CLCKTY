@@ -109,6 +109,7 @@ public partial class App : Wpf.Application
 			return;
 		}
 
+		_mainViewModel.ReportInputTriggered(e.VirtualKey, KeyEventTrigger.Up);
 		_soundEngine?.ReleaseForKey(e.VirtualKey);
 	}
 
@@ -135,6 +136,7 @@ public partial class App : Wpf.Application
 			return;
 		}
 
+		_mainViewModel.ReportInputTriggered(e.InputCode, KeyEventTrigger.Up);
 		_soundEngine?.ReleaseForKey(e.InputCode);
 	}
 
