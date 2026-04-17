@@ -21,13 +21,15 @@ public sealed class MainViewModel : ViewModelBase
     private KeyMappingRowViewModel? _lastMouseCapturedRow;
     private DateTime _lastMouseCapturedAtUtc;
 
-    private SoundProfileDescriptor? _selectedProfile;
+    private SoundProfileDescriptor? _selectedKeyboardProfile;
+    private SoundProfileDescriptor? _selectedMouseProfile;
     private bool _isEnabled;
     private bool _isKeyboardSoundEnabled = true;
     private bool _isMouseSoundEnabled = true;
     private bool _startWithWindows;
     private double _volume;
     private string _statusText = "Ready";
+    private string _lastTriggeredPreview = "Press any key or click a mouse button to test.";
     private bool _isImportingPack;
     private bool _isImportingClip;
 
@@ -40,6 +42,8 @@ public sealed class MainViewModel : ViewModelBase
         _mouseInputOptions = BuildMouseInputOptions();
 
         Profiles = new ObservableCollection<SoundProfileDescriptor>();
+        KeyboardProfiles = new ObservableCollection<SoundProfileDescriptor>();
+        MouseProfiles = new ObservableCollection<SoundProfileDescriptor>();
         KeyboardMappings = new ObservableCollection<KeyMappingRowViewModel>();
         MouseMappings = new ObservableCollection<KeyMappingRowViewModel>();
         ActivityFeed = new ObservableCollection<string>();
@@ -48,26 +52,35 @@ public sealed class MainViewModel : ViewModelBase
         Volume = _soundEngine.MasterVolume * 100d;
         StartWithWindows = _startupService.IsEnabled();
 
-        ImportSoundPackCommand = new RelayCommand(_ => _ = ImportSoundPackAsync(), _ => !IsImportingPack);
+        ImportKeyboardSoundPackCommand = new RelayCommand(_ => _ = ImportSoundPackAsync(false), _ => !IsImportingPack);
+        ImportMouseSoundPackCommand = new RelayCommand(_ => _ = ImportSoundPackAsync(true), _ => !IsImportingPack);
+        ImportSoundPackCommand = ImportKeyboardSoundPackCommand;
         AddKeyboardMappingCommand = new RelayCommand(_ => AddKeyboardMapping());
         AddMouseMappingCommand = new RelayCommand(_ => AddMouseMapping());
         CaptureKeyboardInputCommand = new RelayCommand(parameter => BeginInputCapture(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel);
         RemoveMappingCommand = new RelayCommand(parameter => RemoveMapping(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel);
         ImportMappingAudioCommand = new RelayCommand(parameter => _ = ImportMappingAudioAsync(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel && !IsImportingClip);
+        RemoveRowSoundChoiceCommand = new RelayCommand(parameter => RemoveRowSoundChoice(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel);
         RemoveClipOptionCommand = new RelayCommand(parameter => RemoveClipOption(parameter as KeyMappingOption), parameter => parameter is KeyMappingOption option && option.CanRemove);
         RemoveImportedProfileCommand = new RelayCommand(parameter => RemoveImportedProfile(parameter as SoundProfileDescriptor), parameter => parameter is SoundProfileDescriptor profile && profile.IsImported);
         ClearMappingsCommand = new RelayCommand(_ => ClearMappings());
 
         RemoveLegacyUpMappings();
         BuildMappingRows();
-        LoadProfiles(_soundEngine.ActiveProfileId);
+        LoadProfiles(_soundEngine.GetActiveProfileId(false), _soundEngine.GetActiveProfileId(true));
 
         StatusText = "Listening globally. No keystrokes are stored.";
     }
 
     public event EventHandler<bool>? SoundEnabledChanged;
 
+    public event EventHandler<InputTriggeredPreviewEventArgs>? InputTriggered;
+
     public ObservableCollection<SoundProfileDescriptor> Profiles { get; }
+
+    public ObservableCollection<SoundProfileDescriptor> KeyboardProfiles { get; }
+
+    public ObservableCollection<SoundProfileDescriptor> MouseProfiles { get; }
 
     public ObservableCollection<KeyMappingRowViewModel> KeyboardMappings { get; }
 
@@ -76,6 +89,10 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<string> ActivityFeed { get; }
 
     public ICommand ImportSoundPackCommand { get; }
+
+    public ICommand ImportKeyboardSoundPackCommand { get; }
+
+    public ICommand ImportMouseSoundPackCommand { get; }
 
     public ICommand AddKeyboardMappingCommand { get; }
 
@@ -87,25 +104,43 @@ public sealed class MainViewModel : ViewModelBase
 
     public ICommand ImportMappingAudioCommand { get; }
 
+    public ICommand RemoveRowSoundChoiceCommand { get; }
+
     public ICommand RemoveClipOptionCommand { get; }
 
     public ICommand RemoveImportedProfileCommand { get; }
 
     public ICommand ClearMappingsCommand { get; }
 
-    public SoundProfileDescriptor? SelectedProfile
+    public SoundProfileDescriptor? SelectedKeyboardProfile
     {
-        get => _selectedProfile;
+        get => _selectedKeyboardProfile;
         set
         {
-            if (!SetProperty(ref _selectedProfile, value) || value is null)
+            if (!SetProperty(ref _selectedKeyboardProfile, value) || value is null)
             {
                 return;
             }
 
-            _soundEngine.SetActiveProfile(value.Id);
+            _soundEngine.SetActiveProfile(value.Id, false);
             UpdateMappingOptions();
-            StatusText = $"Active profile: {value.DisplayName}";
+            StatusText = $"Keyboard profile: {value.DisplayName}";
+        }
+    }
+
+    public SoundProfileDescriptor? SelectedMouseProfile
+    {
+        get => _selectedMouseProfile;
+        set
+        {
+            if (!SetProperty(ref _selectedMouseProfile, value) || value is null)
+            {
+                return;
+            }
+
+            _soundEngine.SetActiveProfile(value.Id, true);
+            UpdateMappingOptions();
+            StatusText = $"Mouse profile: {value.DisplayName}";
         }
     }
 
@@ -197,6 +232,12 @@ public sealed class MainViewModel : ViewModelBase
         }
     }
 
+    public string LastTriggeredPreview
+    {
+        get => _lastTriggeredPreview;
+        private set => SetProperty(ref _lastTriggeredPreview, value);
+    }
+
     public bool IsImportingPack
     {
         get => _isImportingPack;
@@ -210,6 +251,16 @@ public sealed class MainViewModel : ViewModelBase
             if (ImportSoundPackCommand is RelayCommand importPackRelay)
             {
                 importPackRelay.RaiseCanExecuteChanged();
+            }
+
+            if (ImportKeyboardSoundPackCommand is RelayCommand importKeyboardRelay)
+            {
+                importKeyboardRelay.RaiseCanExecuteChanged();
+            }
+
+            if (ImportMouseSoundPackCommand is RelayCommand importMouseRelay)
+            {
+                importMouseRelay.RaiseCanExecuteChanged();
             }
         }
     }
@@ -249,15 +300,6 @@ public sealed class MainViewModel : ViewModelBase
             GetCollection(isMouseMapping).Add(row);
         }
 
-        if (KeyboardMappings.Count == 0)
-        {
-            KeyboardMappings.Add(CreateMappingRow(false, _keyboardInputOptions[0].Code));
-        }
-
-        if (MouseMappings.Count == 0)
-        {
-            MouseMappings.Add(CreateMappingRow(true, _mouseInputOptions[0].Code));
-        }
     }
 
     private KeyMappingRowViewModel CreateMappingRow(
@@ -354,12 +396,6 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        if (collection.Count == 0)
-        {
-            var seedCode = row.IsMouseMapping ? _mouseInputOptions[0].Code : _keyboardInputOptions[0].Code;
-            collection.Add(CreateMappingRow(row.IsMouseMapping, seedCode, DefaultMappingTrigger));
-        }
-
         StatusText = $"Removed mapping for {row.InputLabel}.";
     }
 
@@ -397,6 +433,38 @@ public sealed class MainViewModel : ViewModelBase
         return true;
     }
 
+    public void ReportInputTriggered(int inputCode, KeyEventTrigger trigger = KeyEventTrigger.Down)
+    {
+        var isMouseInput = InputBindingCode.IsMouseCode(inputCode);
+        var categoryEnabled = isMouseInput ? IsMouseSoundEnabled : IsKeyboardSoundEnabled;
+
+        if (!IsEnabled || !categoryEnabled)
+        {
+            return;
+        }
+
+        var inputLabel = isMouseInput ? DescribeMouseInput(inputCode) : DescribeVirtualKey(inputCode);
+        var clipDisplayName = _soundEngine.GetPlaybackClipDisplayName(inputCode, trigger);
+
+        LastTriggeredPreview = $"{inputLabel} = {clipDisplayName}";
+
+        var intensity = Math.Clamp(Volume / 100d, 0.2d, 1.0d);
+        InputTriggered?.Invoke(this, new InputTriggeredPreviewEventArgs(inputCode, trigger, intensity));
+    }
+
+    private static string DescribeMouseInput(int inputCode)
+    {
+        return inputCode switch
+        {
+            InputBindingCode.MouseLeft => "Mouse Left",
+            InputBindingCode.MouseRight => "Mouse Right",
+            InputBindingCode.MouseMiddle => "Mouse Middle",
+            InputBindingCode.MouseX1 => "Mouse X1",
+            InputBindingCode.MouseX2 => "Mouse X2",
+            _ => $"Mouse 0x{inputCode:X}"
+        };
+    }
+
     private void BeginInputCapture(KeyMappingRowViewModel? row)
     {
         if (row is null)
@@ -425,33 +493,60 @@ public sealed class MainViewModel : ViewModelBase
             : "Press a key to set this mapping input.";
     }
 
-    private void LoadProfiles(string preferredProfileId)
+    private void LoadProfiles(string preferredKeyboardProfileId, string preferredMouseProfileId)
     {
-        var profiles = _soundEngine.Profiles
+        var keyboardProfiles = _soundEngine.GetProfiles(false)
             .OrderBy(profile => profile.IsImported)
             .ThenBy(profile => profile.DisplayName)
             .ToList();
 
+        var mouseProfiles = _soundEngine.GetProfiles(true)
+            .OrderBy(profile => profile.IsImported)
+            .ThenBy(profile => profile.DisplayName)
+            .ToList();
+
+        KeyboardProfiles.Clear();
+        MouseProfiles.Clear();
         Profiles.Clear();
 
-        foreach (var profile in profiles)
+        foreach (var profile in keyboardProfiles)
         {
+            KeyboardProfiles.Add(profile);
             Profiles.Add(profile);
         }
 
-        SelectedProfile = Profiles.FirstOrDefault(profile =>
-            string.Equals(profile.Id, preferredProfileId, StringComparison.OrdinalIgnoreCase))
-            ?? Profiles.FirstOrDefault();
+        foreach (var profile in mouseProfiles)
+        {
+            MouseProfiles.Add(profile);
+            Profiles.Add(profile);
+        }
+
+        SelectedKeyboardProfile = KeyboardProfiles.FirstOrDefault(profile =>
+            string.Equals(profile.Id, preferredKeyboardProfileId, StringComparison.OrdinalIgnoreCase))
+            ?? KeyboardProfiles.FirstOrDefault();
+
+        SelectedMouseProfile = MouseProfiles.FirstOrDefault(profile =>
+            string.Equals(profile.Id, preferredMouseProfileId, StringComparison.OrdinalIgnoreCase))
+            ?? MouseProfiles.FirstOrDefault();
     }
 
     private void UpdateMappingOptions()
+    {
+        var keyboardClipOptions = BuildClipOptions(false);
+        var mouseClipOptions = BuildClipOptions(true);
+
+        UpdateOptionsForRows(KeyboardMappings, keyboardClipOptions);
+        UpdateOptionsForRows(MouseMappings, mouseClipOptions);
+    }
+
+    private List<KeyMappingOption> BuildClipOptions(bool isMouseMapping)
     {
         var clipOptions = new List<KeyMappingOption>
         {
             new(null, "Default", "Profile")
         };
 
-        var orderedClips = _soundEngine.GetClipOptions()
+        var orderedClips = _soundEngine.GetClipOptions(isMouseMapping)
             .OrderByDescending(clip => string.Equals(clip.SourceLabel, "Uploaded", StringComparison.OrdinalIgnoreCase))
             .ThenBy(clip => clip.DisplayName)
             .ToList();
@@ -461,10 +556,15 @@ public sealed class MainViewModel : ViewModelBase
             clipOptions.Add(new KeyMappingOption(clip.Id, clip.DisplayName, clip.SourceLabel, clip.CanRemove));
         }
 
-        foreach (var row in GetAllRows())
+        return clipOptions;
+    }
+
+    private void UpdateOptionsForRows(IEnumerable<KeyMappingRowViewModel> rows, IReadOnlyCollection<KeyMappingOption> options)
+    {
+        foreach (var row in rows)
         {
             var previousClipId = row.SelectedClipId;
-            row.UpdateOptions(clipOptions);
+            row.UpdateOptions(options);
 
             if (previousClipId is not null && row.SelectedClipId is null)
             {
@@ -508,7 +608,7 @@ public sealed class MainViewModel : ViewModelBase
             return false;
         }
 
-        LoadProfiles(_soundEngine.ActiveProfileId);
+        LoadProfiles(_soundEngine.GetActiveProfileId(false), _soundEngine.GetActiveProfileId(true));
         StatusText = $"Removed imported pack: {profile.DisplayName}.";
         return true;
     }
@@ -517,6 +617,18 @@ public sealed class MainViewModel : ViewModelBase
     {
         if (option?.Id is null)
         {
+            return;
+        }
+
+        var removeFromKeyboard = _soundEngine.GetClipOptions(false)
+            .Any(clip => string.Equals(clip.Id, option.Id, StringComparison.OrdinalIgnoreCase) && clip.CanRemove);
+
+        var removeFromMouse = !removeFromKeyboard && _soundEngine.GetClipOptions(true)
+            .Any(clip => string.Equals(clip.Id, option.Id, StringComparison.OrdinalIgnoreCase) && clip.CanRemove);
+
+        if (!removeFromKeyboard && !removeFromMouse)
+        {
+            StatusText = $"{option.DisplayName} cannot be deleted.";
             return;
         }
 
@@ -532,7 +644,8 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        if (!_soundEngine.RemoveClipFromActiveProfile(option.Id))
+        var removed = _soundEngine.RemoveClipFromActiveProfile(option.Id, removeFromMouse);
+        if (!removed)
         {
             StatusText = $"Could not remove {option.DisplayName}.";
             return;
@@ -540,6 +653,58 @@ public sealed class MainViewModel : ViewModelBase
 
         UpdateMappingOptions();
         StatusText = $"Removed {option.DisplayName} from choices.";
+    }
+
+    private void RemoveRowSoundChoice(KeyMappingRowViewModel? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(row.SelectedClipId))
+        {
+            StatusText = $"{row.InputLabel} already uses default sound.";
+            return;
+        }
+
+        var clipOption = _soundEngine.GetClipOptions(row.IsMouseMapping)
+            .FirstOrDefault(clip => string.Equals(clip.Id, row.SelectedClipId, StringComparison.OrdinalIgnoreCase));
+
+        if (clipOption is null)
+        {
+            row.SelectedClipId = null;
+            StatusText = $"{row.InputLabel}: reverted to default sound.";
+            return;
+        }
+
+        if (!clipOption.CanRemove)
+        {
+            row.SelectedClipId = null;
+            StatusText = $"{row.InputLabel}: reverted to default sound.";
+            return;
+        }
+
+        var confirm = Forms.MessageBox.Show(
+            $"Delete '{clipOption.DisplayName}' from this {(row.IsMouseMapping ? "mouse" : "keyboard")} profile?",
+            "Delete Sound Choice",
+            Forms.MessageBoxButtons.YesNo,
+            Forms.MessageBoxIcon.Warning,
+            Forms.MessageBoxDefaultButton.Button2);
+
+        if (confirm != Forms.DialogResult.Yes)
+        {
+            return;
+        }
+
+        if (!_soundEngine.RemoveClipFromActiveProfile(clipOption.Id, row.IsMouseMapping))
+        {
+            StatusText = $"Could not remove {clipOption.DisplayName}.";
+            return;
+        }
+
+        UpdateMappingOptions();
+        StatusText = $"Removed {clipOption.DisplayName} from {(row.IsMouseMapping ? "mouse" : "keyboard")} choices.";
     }
 
     private void OnMappingChanged(object? sender, EventArgs e)
@@ -643,11 +808,13 @@ public sealed class MainViewModel : ViewModelBase
         }
     }
 
-    private async Task ImportSoundPackAsync()
+    private async Task ImportSoundPackAsync(bool isMouseProfile)
     {
+        var profileLabel = isMouseProfile ? "mouse" : "keyboard";
+
         using var dialog = new Forms.FolderBrowserDialog
         {
-            Description = "Select a folder with .wav files or config.json + timeline audio.",
+            Description = $"Select a folder with {profileLabel} sounds (.wav files or config.json + timeline audio).",
             UseDescriptionForTitle = true,
             ShowNewFolderButton = false
         };
@@ -661,7 +828,7 @@ public sealed class MainViewModel : ViewModelBase
 
         try
         {
-            var importedProfileId = await _soundEngine.ImportSoundPackAsync(dialog.SelectedPath)
+            var importedProfileId = await _soundEngine.ImportSoundPackAsync(dialog.SelectedPath, isMouseProfile)
                 .ConfigureAwait(true);
 
             if (string.IsNullOrWhiteSpace(importedProfileId))
@@ -670,8 +837,8 @@ public sealed class MainViewModel : ViewModelBase
                 return;
             }
 
-            LoadProfiles(importedProfileId);
-            StatusText = "Custom sound pack imported.";
+            LoadProfiles(_soundEngine.GetActiveProfileId(false), _soundEngine.GetActiveProfileId(true));
+            StatusText = $"Custom {profileLabel} sound pack imported.";
         }
         catch (OperationCanceledException)
         {
@@ -712,7 +879,7 @@ public sealed class MainViewModel : ViewModelBase
 
         try
         {
-            var importedClipId = await _soundEngine.ImportAudioClipAsync(dialog.FileName)
+            var importedClipId = await _soundEngine.ImportAudioClipAsync(dialog.FileName, row.IsMouseMapping)
                 .ConfigureAwait(true);
 
             if (string.IsNullOrWhiteSpace(importedClipId))
@@ -844,4 +1011,20 @@ public sealed class MainViewModel : ViewModelBase
             _ => $"VK 0x{virtualKey:X2}"
         };
     }
+}
+
+public sealed class InputTriggeredPreviewEventArgs : EventArgs
+{
+    public InputTriggeredPreviewEventArgs(int inputCode, KeyEventTrigger trigger, double intensity)
+    {
+        InputCode = inputCode;
+        Trigger = trigger;
+        Intensity = intensity;
+    }
+
+    public int InputCode { get; }
+
+    public KeyEventTrigger Trigger { get; }
+
+    public double Intensity { get; }
 }

@@ -22,7 +22,7 @@ public partial class App : Wpf.Application
 	private bool _isExitRequested;
 	private bool _isCleanedUp;
 	private readonly HashSet<int> _pressedKeys = new();
-	private bool _isToggleHotkeyLatched;
+	private readonly HashSet<string> _latchedHotkeys = new(StringComparer.OrdinalIgnoreCase);
 
 	protected override void OnStartup(Wpf.StartupEventArgs e)
 	{
@@ -85,14 +85,8 @@ public partial class App : Wpf.Application
 			return;
 		}
 
-		if (_mainViewModel is not null && IsToggleHotkeyPressed())
+		if (_mainViewModel is not null && TryHandleToggleHotkeys())
 		{
-			if (!_isToggleHotkeyLatched)
-			{
-				_mainViewModel.IsEnabled = !_mainViewModel.IsEnabled;
-				_isToggleHotkeyLatched = true;
-			}
-
 			return;
 		}
 
@@ -101,17 +95,14 @@ public partial class App : Wpf.Application
 			return;
 		}
 
+		_mainViewModel.ReportInputTriggered(e.VirtualKey, KeyEventTrigger.Down);
 		_soundEngine?.StartHoldForKey(e.VirtualKey);
 	}
 
 	private void KeyboardHookService_KeyUp(object? sender, GlobalKeyPressedEventArgs e)
 	{
 		_pressedKeys.Remove(e.VirtualKey);
-
-		if (!IsToggleHotkeyPressed())
-		{
-			_isToggleHotkeyLatched = false;
-		}
+		ReleaseToggleHotkeyLatches();
 
 		if (_mainViewModel is null || !_mainViewModel.IsKeyboardSoundEnabled)
 		{
@@ -133,6 +124,7 @@ public partial class App : Wpf.Application
 			return;
 		}
 
+		_mainViewModel.ReportInputTriggered(e.InputCode, KeyEventTrigger.Down);
 		_soundEngine?.StartHoldForKey(e.InputCode);
 	}
 
@@ -265,13 +257,74 @@ public partial class App : Wpf.Application
 		}
 	}
 
-	private bool IsToggleHotkeyPressed()
+	private bool TryHandleToggleHotkeys()
+	{
+		if (_mainViewModel is null)
+		{
+			return false;
+		}
+
+		var handled = false;
+
+		if (IsMasterToggleHotkeyPressed())
+		{
+			handled = true;
+			if (_latchedHotkeys.Add("master"))
+			{
+				_mainViewModel.IsEnabled = !_mainViewModel.IsEnabled;
+			}
+		}
+
+		if (IsKeyboardToggleHotkeyPressed())
+		{
+			handled = true;
+			if (_latchedHotkeys.Add("keyboard"))
+			{
+				_mainViewModel.IsKeyboardSoundEnabled = !_mainViewModel.IsKeyboardSoundEnabled;
+			}
+		}
+
+		if (IsMouseToggleHotkeyPressed())
+		{
+			handled = true;
+			if (_latchedHotkeys.Add("mouse"))
+			{
+				_mainViewModel.IsMouseSoundEnabled = !_mainViewModel.IsMouseSoundEnabled;
+			}
+		}
+
+		return handled;
+	}
+
+	private void ReleaseToggleHotkeyLatches()
+	{
+		if (!IsMasterToggleHotkeyPressed())
+		{
+			_latchedHotkeys.Remove("master");
+		}
+
+		if (!IsKeyboardToggleHotkeyPressed())
+		{
+			_latchedHotkeys.Remove("keyboard");
+		}
+
+		if (!IsMouseToggleHotkeyPressed())
+		{
+			_latchedHotkeys.Remove("mouse");
+		}
+	}
+
+	private bool IsMasterToggleHotkeyPressed() => IsCtrlAltPressed() && _pressedKeys.Contains(0x4D);
+
+	private bool IsKeyboardToggleHotkeyPressed() => IsCtrlAltPressed() && _pressedKeys.Contains(0x4B);
+
+	private bool IsMouseToggleHotkeyPressed() => IsCtrlAltPressed() && _pressedKeys.Contains(0x4F);
+
+	private bool IsCtrlAltPressed()
 	{
 		var ctrlPressed = _pressedKeys.Contains(0x11) || _pressedKeys.Contains(0xA2) || _pressedKeys.Contains(0xA3);
 		var altPressed = _pressedKeys.Contains(0x12) || _pressedKeys.Contains(0xA4) || _pressedKeys.Contains(0xA5);
-		var mPressed = _pressedKeys.Contains(0x4D);
-
-		return ctrlPressed && altPressed && mPressed;
+		return ctrlPressed && altPressed;
 	}
 }
 

@@ -18,6 +18,8 @@ public sealed class SoundEngine : ISoundEngine
     private const int MaxImportedSliceMs = 1200;
     private const uint MapvkVscToVk = 1;
     private const uint MapvkVscToVkEx = 3;
+    private const string MechvibesPreviewCredit = "From MechVibesDX (Preview)";
+    private const string ImportedCredit = "Imported";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -38,7 +40,8 @@ public sealed class SoundEngine : ISoundEngine
 
     private bool _isEnabled = true;
     private float _masterVolume = 0.75f;
-    private string _activeProfileId = string.Empty;
+    private string _activeKeyboardProfileId = string.Empty;
+    private string _activeMouseProfileId = string.Empty;
     private bool _disposed;
 
     public SoundEngine()
@@ -57,7 +60,18 @@ public sealed class SoundEngine : ISoundEngine
         _outputDevice.Init(_mixer);
 
         LoadBuiltInProfiles();
-        _activeProfileId = _profiles.Keys.First();
+        _activeKeyboardProfileId = FindFirstProfileId(false);
+        _activeMouseProfileId = FindFirstProfileId(true);
+
+        if (string.IsNullOrWhiteSpace(_activeMouseProfileId))
+        {
+            _activeMouseProfileId = _activeKeyboardProfileId;
+        }
+
+        if (string.IsNullOrWhiteSpace(_activeKeyboardProfileId))
+        {
+            _activeKeyboardProfileId = _activeMouseProfileId;
+        }
 
         _outputDevice.Play();
     }
@@ -104,10 +118,7 @@ public sealed class SoundEngine : ISoundEngine
     {
         get
         {
-            lock (_sync)
-            {
-                return _activeProfileId;
-            }
+            return GetActiveProfileId(false);
         }
     }
 
@@ -115,22 +126,42 @@ public sealed class SoundEngine : ISoundEngine
     {
         get
         {
-            lock (_sync)
-            {
-                return _profiles.Values
-                    .Select(ToDescriptor)
-                    .ToList();
-            }
+            return GetProfiles(false);
+        }
+    }
+
+    public string GetActiveProfileId(bool isMouseProfile)
+    {
+        lock (_sync)
+        {
+            return isMouseProfile ? _activeMouseProfileId : _activeKeyboardProfileId;
+        }
+    }
+
+    public IReadOnlyList<SoundProfileDescriptor> GetProfiles(bool isMouseProfile)
+    {
+        lock (_sync)
+        {
+            return _profiles.Values
+                .Where(profile => profile.IsMouseProfile == isMouseProfile)
+                .Select(ToDescriptor)
+                .ToList();
         }
     }
 
     public IReadOnlyList<SoundClipDescriptor> GetClipOptions()
     {
+        return GetClipOptions(false);
+    }
+
+    public IReadOnlyList<SoundClipDescriptor> GetClipOptions(bool isMouseProfile)
+    {
         lock (_sync)
         {
             ThrowIfDisposed();
 
-            if (!_profiles.TryGetValue(_activeProfileId, out var profile))
+            var activeProfileId = isMouseProfile ? _activeMouseProfileId : _activeKeyboardProfileId;
+            if (!_profiles.TryGetValue(activeProfileId, out var profile))
             {
                 return Array.Empty<SoundClipDescriptor>();
             }
@@ -160,6 +191,11 @@ public sealed class SoundEngine : ISoundEngine
 
     public void SetActiveProfile(string profileId)
     {
+        SetActiveProfile(profileId, false);
+    }
+
+    public void SetActiveProfile(string profileId, bool isMouseProfile)
+    {
         if (string.IsNullOrWhiteSpace(profileId))
         {
             return;
@@ -169,9 +205,17 @@ public sealed class SoundEngine : ISoundEngine
         {
             ThrowIfDisposed();
 
-            if (_profiles.ContainsKey(profileId))
+            if (_profiles.TryGetValue(profileId, out var profile)
+                && profile.IsMouseProfile == isMouseProfile)
             {
-                _activeProfileId = profileId;
+                if (isMouseProfile)
+                {
+                    _activeMouseProfileId = profileId;
+                }
+                else
+                {
+                    _activeKeyboardProfileId = profileId;
+                }
             }
         }
     }
@@ -205,6 +249,11 @@ public sealed class SoundEngine : ISoundEngine
 
     public bool RemoveClipFromActiveProfile(string clipId)
     {
+        return RemoveClipFromActiveProfile(clipId, false);
+    }
+
+    public bool RemoveClipFromActiveProfile(string clipId, bool isMouseProfile)
+    {
         if (string.IsNullOrWhiteSpace(clipId))
         {
             return false;
@@ -214,7 +263,9 @@ public sealed class SoundEngine : ISoundEngine
         {
             ThrowIfDisposed();
 
-            if (!_profiles.TryGetValue(_activeProfileId, out var activeProfile)
+            var activeProfileId = isMouseProfile ? _activeMouseProfileId : _activeKeyboardProfileId;
+
+            if (!_profiles.TryGetValue(activeProfileId, out var activeProfile)
                 || !activeProfile.Clips.ContainsKey(clipId)
                 || string.Equals(activeProfile.DefaultClipId, clipId, StringComparison.OrdinalIgnoreCase))
             {
@@ -250,7 +301,9 @@ public sealed class SoundEngine : ISoundEngine
                 updatedClips,
                 updatedDefaultKeyClips,
                 updatedDefaultKeyUpClips,
-                activeProfile.IsImported);
+                activeProfile.IsImported,
+                activeProfile.IsMouseProfile,
+                activeProfile.SourceLabel);
 
             return true;
         }
@@ -272,16 +325,28 @@ public sealed class SoundEngine : ISoundEngine
                 return false;
             }
 
-            if (_profiles.Count <= 1)
+            var categoryCount = _profiles.Values.Count(candidate => candidate.IsMouseProfile == profile.IsMouseProfile);
+            if (categoryCount <= 1)
             {
                 return false;
             }
 
             _profiles.Remove(profileId);
 
-            if (string.Equals(_activeProfileId, profileId, StringComparison.OrdinalIgnoreCase))
+            if (profile.IsMouseProfile && string.Equals(_activeMouseProfileId, profileId, StringComparison.OrdinalIgnoreCase))
             {
-                _activeProfileId = _profiles.Values
+                _activeMouseProfileId = _profiles.Values
+                    .Where(candidate => candidate.IsMouseProfile)
+                    .OrderBy(candidate => candidate.IsImported)
+                    .ThenBy(candidate => candidate.DisplayName)
+                    .Select(candidate => candidate.Id)
+                    .FirstOrDefault() ?? string.Empty;
+            }
+
+            if (!profile.IsMouseProfile && string.Equals(_activeKeyboardProfileId, profileId, StringComparison.OrdinalIgnoreCase))
+            {
+                _activeKeyboardProfileId = _profiles.Values
+                    .Where(candidate => !candidate.IsMouseProfile)
                     .OrderBy(candidate => candidate.IsImported)
                     .ThenBy(candidate => candidate.DisplayName)
                     .Select(candidate => candidate.Id)
@@ -306,10 +371,12 @@ public sealed class SoundEngine : ISoundEngine
         LoadedSoundProfile? profile;
         SoundClip? clip;
         float volume;
+        var isMouseInput = InputBindingCode.IsMouseCode(virtualKey);
 
         lock (_sync)
         {
-            if (_disposed || !_isEnabled || !_profiles.TryGetValue(_activeProfileId, out profile) || profile is null)
+            var activeProfileId = isMouseInput ? _activeMouseProfileId : _activeKeyboardProfileId;
+            if (_disposed || !_isEnabled || !_profiles.TryGetValue(activeProfileId, out profile) || profile is null)
             {
                 return;
             }
@@ -345,10 +412,12 @@ public sealed class SoundEngine : ISoundEngine
         SoundClip? clipToPlay = null;
         float volume = 0f;
         var splitClipOnRelease = false;
+        var isMouseInput = InputBindingCode.IsMouseCode(virtualKey);
 
         lock (_sync)
         {
-            if (_disposed || !_isEnabled || !_profiles.TryGetValue(_activeProfileId, out profile) || profile is null)
+            var activeProfileId = isMouseInput ? _activeMouseProfileId : _activeKeyboardProfileId;
+            if (_disposed || !_isEnabled || !_profiles.TryGetValue(activeProfileId, out profile) || profile is null)
             {
                 return;
             }
@@ -464,6 +533,7 @@ public sealed class SoundEngine : ISoundEngine
         SoundClip? mappedUpClip = null;
         CachedSound? second = null;
         float volume;
+        var isMouseInput = InputBindingCode.IsMouseCode(virtualKey);
 
         lock (_sync)
         {
@@ -472,7 +542,9 @@ public sealed class SoundEngine : ISoundEngine
                 return;
             }
 
-            if (_profiles.TryGetValue(_activeProfileId, out var profile)
+            var activeProfileId = isMouseInput ? _activeMouseProfileId : _activeKeyboardProfileId;
+
+            if (_profiles.TryGetValue(activeProfileId, out var profile)
                 && _keyMappings.TryGetValue((virtualKey, KeyEventTrigger.Up), out var upClipId)
                 && profile.Clips.TryGetValue(upClipId, out var resolvedUpClip))
             {
@@ -480,7 +552,7 @@ public sealed class SoundEngine : ISoundEngine
             }
 
             if (mappedUpClip is null
-                && _profiles.TryGetValue(_activeProfileId, out var activeProfile)
+                && _profiles.TryGetValue(activeProfileId, out var activeProfile)
                 && activeProfile.DefaultKeyUpClips.TryGetValue(virtualKey, out var defaultUpClipId)
                 && activeProfile.Clips.TryGetValue(defaultUpClipId, out var resolvedDefaultUpClip))
             {
@@ -543,14 +615,19 @@ public sealed class SoundEngine : ISoundEngine
         }
     }
 
-    public async Task<string?> ImportSoundPackAsync(string folderPath, CancellationToken cancellationToken = default)
+    public Task<string?> ImportSoundPackAsync(string folderPath, CancellationToken cancellationToken = default)
+    {
+        return ImportSoundPackAsync(folderPath, false, cancellationToken);
+    }
+
+    public async Task<string?> ImportSoundPackAsync(string folderPath, bool isMouseProfile, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
         {
             return null;
         }
 
-        var imported = await Task.Run(() => LoadProfileFromFolder(folderPath, cancellationToken), cancellationToken)
+        var imported = await Task.Run(() => LoadProfileFromFolder(folderPath, cancellationToken, isMouseProfile, true, ImportedCredit), cancellationToken)
             .ConfigureAwait(false);
 
         if (imported is null)
@@ -565,7 +642,7 @@ public sealed class SoundEngine : ISoundEngine
             foreach (var candidate in configCandidates)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                imported = LoadProfileFromFolder(candidate, cancellationToken);
+                imported = LoadProfileFromFolder(candidate, cancellationToken, isMouseProfile, true, ImportedCredit);
                 if (imported is not null)
                 {
                     break;
@@ -582,12 +659,26 @@ public sealed class SoundEngine : ISoundEngine
         {
             ThrowIfDisposed();
             _profiles[imported.Id] = imported;
+
+            if (imported.IsMouseProfile)
+            {
+                _activeMouseProfileId = imported.Id;
+            }
+            else
+            {
+                _activeKeyboardProfileId = imported.Id;
+            }
         }
 
         return imported.Id;
     }
 
-    public async Task<string?> ImportAudioClipAsync(string filePath, CancellationToken cancellationToken = default)
+    public Task<string?> ImportAudioClipAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        return ImportAudioClipAsync(filePath, false, cancellationToken);
+    }
+
+    public async Task<string?> ImportAudioClipAsync(string filePath, bool isMouseProfile, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
         {
@@ -610,7 +701,8 @@ public sealed class SoundEngine : ISoundEngine
         {
             ThrowIfDisposed();
 
-            if (!_profiles.TryGetValue(_activeProfileId, out var activeProfile))
+            var activeProfileId = isMouseProfile ? _activeMouseProfileId : _activeKeyboardProfileId;
+            if (!_profiles.TryGetValue(activeProfileId, out var activeProfile))
             {
                 return null;
             }
@@ -629,7 +721,9 @@ public sealed class SoundEngine : ISoundEngine
                 newClips,
                 activeProfile.DefaultKeyClips,
                 activeProfile.DefaultKeyUpClips,
-                activeProfile.IsImported);
+                activeProfile.IsImported,
+                activeProfile.IsMouseProfile,
+                activeProfile.SourceLabel);
 
             _profiles[updatedProfile.Id] = updatedProfile;
             return uniqueClipId;
@@ -657,7 +751,43 @@ public sealed class SoundEngine : ISoundEngine
             .Select(clip => new SoundClipDescriptor(clip.Id, clip.DisplayName, clip.SourceLabel, false))
             .ToList();
 
-        return new SoundProfileDescriptor(profile.Id, profile.DisplayName, clips, profile.IsImported);
+        return new SoundProfileDescriptor(
+            profile.Id,
+            profile.DisplayName,
+            clips,
+            profile.IsImported,
+            profile.IsMouseProfile,
+            profile.SourceLabel);
+    }
+
+    public string GetPlaybackClipDisplayName(int inputCode, KeyEventTrigger trigger = KeyEventTrigger.Down)
+    {
+        lock (_sync)
+        {
+            ThrowIfDisposed();
+
+            var activeProfileId = InputBindingCode.IsMouseCode(inputCode)
+                ? _activeMouseProfileId
+                : _activeKeyboardProfileId;
+
+            if (!_profiles.TryGetValue(activeProfileId, out var profile))
+            {
+                return "Default";
+            }
+
+            var clipId = ResolveClipForKey(profile, inputCode, trigger);
+            if (profile.Clips.TryGetValue(clipId, out var clip))
+            {
+                return clip.DisplayName;
+            }
+
+            if (profile.Clips.TryGetValue(profile.DefaultClipId, out var defaultClip))
+            {
+                return defaultClip.DisplayName;
+            }
+
+            return "Default";
+        }
     }
 
     private string ResolveClipForKey(LoadedSoundProfile profile, int virtualKey, KeyEventTrigger trigger)
@@ -680,7 +810,104 @@ public sealed class SoundEngine : ISoundEngine
         return profile.DefaultClipId;
     }
 
+    private string FindFirstProfileId(bool isMouseProfile)
+    {
+        return _profiles.Values
+            .Where(profile => profile.IsMouseProfile == isMouseProfile)
+            .OrderBy(profile => profile.IsImported)
+            .ThenBy(profile => profile.DisplayName)
+            .Select(profile => profile.Id)
+            .FirstOrDefault() ?? string.Empty;
+    }
+
+    private static string CreateProfileId(string normalizedSeed, bool isMouseProfile, bool isImported)
+    {
+        var category = isMouseProfile ? "mouse" : "keyboard";
+
+        if (!isImported)
+        {
+            return $"stock-{category}-{normalizedSeed}";
+        }
+
+        var uniqueId = Guid.NewGuid().ToString("N")[..6];
+        return $"custom-{category}-{normalizedSeed}-{uniqueId}";
+    }
+
     private void LoadBuiltInProfiles()
+    {
+        _profiles.Clear();
+
+        foreach (var bundledProfile in LoadBundledProfilesFromAssets())
+        {
+            _profiles[bundledProfile.Id] = bundledProfile;
+        }
+
+        if (!_profiles.Values.Any(profile => !profile.IsMouseProfile))
+        {
+            AddFallbackKeyboardProfiles();
+        }
+
+        if (!_profiles.Values.Any(profile => profile.IsMouseProfile))
+        {
+            AddFallbackMouseProfile();
+        }
+    }
+
+    private static IEnumerable<LoadedSoundProfile> LoadBundledProfilesFromAssets()
+    {
+        var bundledRoot = ResolveBundledSoundsRoot();
+        if (string.IsNullOrWhiteSpace(bundledRoot) || !Directory.Exists(bundledRoot))
+        {
+            yield break;
+        }
+
+        foreach (var keyboardProfile in LoadBundledProfilesFromCategory(Path.Combine(bundledRoot, "keyboard"), false))
+        {
+            yield return keyboardProfile;
+        }
+
+        foreach (var mouseProfile in LoadBundledProfilesFromCategory(Path.Combine(bundledRoot, "mouse"), true))
+        {
+            yield return mouseProfile;
+        }
+    }
+
+    private static IEnumerable<LoadedSoundProfile> LoadBundledProfilesFromCategory(string categoryFolder, bool isMouseProfile)
+    {
+        if (!Directory.Exists(categoryFolder))
+        {
+            yield break;
+        }
+
+        foreach (var profileFolder in Directory.EnumerateDirectories(categoryFolder, "*", SearchOption.TopDirectoryOnly))
+        {
+            var loaded = LoadProfileFromFolder(
+                profileFolder,
+                CancellationToken.None,
+                isMouseProfile,
+                false,
+                MechvibesPreviewCredit);
+
+            if (loaded is not null)
+            {
+                yield return loaded;
+            }
+        }
+    }
+
+    private static string ResolveBundledSoundsRoot()
+    {
+        var outputAssetsPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds");
+        if (Directory.Exists(outputAssetsPath))
+        {
+            return outputAssetsPath;
+        }
+
+        var localAssetsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "Sounds"));
+        return localAssetsPath;
+    }
+
+    private void AddFallbackKeyboardProfiles()
     {
         var neonClips = new Dictionary<string, SoundClip>(StringComparer.OrdinalIgnoreCase)
         {
@@ -710,7 +937,9 @@ public sealed class SoundEngine : ISoundEngine
             neonClips,
             CreateDefaultKeyMap(),
             new Dictionary<int, string>(),
-            false);
+            false,
+            false,
+            "Stock");
 
         _profiles["stealth-black"] = new LoadedSoundProfile(
             "stealth-black",
@@ -719,7 +948,9 @@ public sealed class SoundEngine : ISoundEngine
             stealthClips,
             CreateDefaultKeyMap(),
             new Dictionary<int, string>(),
-            false);
+            false,
+            false,
+            "Stock");
 
         _profiles["crystal-violet"] = new LoadedSoundProfile(
             "crystal-violet",
@@ -728,7 +959,39 @@ public sealed class SoundEngine : ISoundEngine
             crystalClips,
             CreateDefaultKeyMap(),
             new Dictionary<int, string>(),
-            false);
+            false,
+            false,
+            "Stock");
+    }
+
+    private void AddFallbackMouseProfile()
+    {
+        var mouseClips = new Dictionary<string, SoundClip>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["default"] = new SoundClip("default", "Mouse Click", CreateSynthClick(1260, 30, 0.16f, 0.76f, 1.59)),
+            ["accent"] = new SoundClip("accent", "Mouse Tick", CreateSynthClick(1580, 24, 0.10f, 0.70f, 2.05)),
+            ["heavy"] = new SoundClip("heavy", "Mouse Thock", CreateSynthClick(980, 42, 0.21f, 0.84f, 1.31))
+        };
+
+        var mouseMap = new Dictionary<int, string>
+        {
+            [InputBindingCode.MouseLeft] = "default",
+            [InputBindingCode.MouseRight] = "accent",
+            [InputBindingCode.MouseMiddle] = "heavy",
+            [InputBindingCode.MouseX1] = "accent",
+            [InputBindingCode.MouseX2] = "heavy"
+        };
+
+        _profiles["fallback-mouse"] = new LoadedSoundProfile(
+            "fallback-mouse",
+            "Mouse Clicks",
+            "default",
+            mouseClips,
+            mouseMap,
+            new Dictionary<int, string>(),
+            false,
+            true,
+            "Stock");
     }
 
     private static IReadOnlyDictionary<int, string> CreateDefaultKeyMap()
@@ -776,12 +1039,17 @@ public sealed class SoundEngine : ISoundEngine
         return new CachedSound(OutputFormat, audioData);
     }
 
-    private static LoadedSoundProfile? LoadProfileFromFolder(string folderPath, CancellationToken cancellationToken)
+    private static LoadedSoundProfile? LoadProfileFromFolder(
+        string folderPath,
+        CancellationToken cancellationToken,
+        bool isMouseProfile,
+        bool isImported,
+        string sourceLabel)
     {
         var configPath = Path.Combine(folderPath, "config.json");
         if (File.Exists(configPath))
         {
-            var configProfile = LoadProfileFromConfig(folderPath, configPath, cancellationToken);
+            var configProfile = LoadProfileFromConfig(folderPath, configPath, cancellationToken, isMouseProfile, isImported, sourceLabel);
             if (configProfile is not null)
             {
                 return configProfile;
@@ -795,7 +1063,7 @@ public sealed class SoundEngine : ISoundEngine
         {
             foreach (var candidateFolder in EnumerateCandidatePackFolders(folderPath, cancellationToken))
             {
-                var nested = LoadProfileFromFolder(candidateFolder, cancellationToken);
+                var nested = LoadProfileFromFolder(candidateFolder, cancellationToken, isMouseProfile, isImported, sourceLabel);
                 if (nested is not null)
                 {
                     return nested;
@@ -819,7 +1087,7 @@ public sealed class SoundEngine : ISoundEngine
             var displayName = ToDisplayName(name);
             var clipSound = LoadCachedSoundFromFile(waveFile);
 
-            clips[clipId] = new SoundClip(clipId, displayName, clipSound, packLabel);
+            clips[clipId] = new SoundClip(clipId, displayName, clipSound, sourceLabel);
         }
 
         if (clips.Count == 0)
@@ -829,17 +1097,19 @@ public sealed class SoundEngine : ISoundEngine
 
         var defaultClipId = clips.ContainsKey("default") ? "default" : clips.Keys.First();
         var baseId = NormalizeToken(folderName);
-        var uniqueId = Guid.NewGuid().ToString("N")[..6];
-        var profileId = $"custom-{baseId}-{uniqueId}";
+        var profileId = CreateProfileId(baseId, isMouseProfile, isImported);
+        var profileDisplayName = isImported ? $"{packLabel} (Custom)" : packLabel;
 
         return new LoadedSoundProfile(
             profileId,
-            $"{packLabel} (Custom)",
+            profileDisplayName,
             defaultClipId,
             clips,
-            CreateDefaultKeyMap(),
             new Dictionary<int, string>(),
-            true);
+            new Dictionary<int, string>(),
+            isImported,
+            isMouseProfile,
+            sourceLabel);
     }
 
     private static IEnumerable<string> EnumerateCandidatePackFolders(string rootFolder, CancellationToken cancellationToken)
@@ -878,7 +1148,13 @@ public sealed class SoundEngine : ISoundEngine
         }
     }
 
-    private static LoadedSoundProfile? LoadProfileFromConfig(string folderPath, string configPath, CancellationToken cancellationToken)
+    private static LoadedSoundProfile? LoadProfileFromConfig(
+        string folderPath,
+        string configPath,
+        CancellationToken cancellationToken,
+        bool isMouseProfile,
+        bool isImported,
+        string sourceLabel)
     {
         ImportedSoundPackConfig? config;
         string json;
@@ -895,7 +1171,7 @@ public sealed class SoundEngine : ISoundEngine
 
         if (config is null || string.IsNullOrWhiteSpace(config.Sound) || config.Defines is null || config.Defines.Count == 0)
         {
-            return LoadProfileFromMechvibesConfig(folderPath, json, cancellationToken);
+            return LoadProfileFromMechvibesConfig(folderPath, json, cancellationToken, isMouseProfile, isImported, sourceLabel);
         }
 
         var soundFilePath = Path.Combine(folderPath, config.Sound);
@@ -955,7 +1231,7 @@ public sealed class SoundEngine : ISoundEngine
 
                 clipId = $"seg{clips.Count + 1:D3}";
                 var segmentName = $"Segment {clips.Count + 1}";
-                clips[clipId] = new SoundClip(clipId, segmentName, sliced, displayName);
+                clips[clipId] = new SoundClip(clipId, segmentName, sliced, sourceLabel);
                 sliceToClip[sliceKey] = clipId;
             }
 
@@ -972,21 +1248,29 @@ public sealed class SoundEngine : ISoundEngine
 
         var normalizedIdSeed = string.IsNullOrWhiteSpace(config.Id) ? displayName : config.Id;
         var baseId = NormalizeToken(normalizedIdSeed);
-        var uniqueId = Guid.NewGuid().ToString("N")[..6];
-        var profileId = $"custom-{baseId}-{uniqueId}";
+        var profileId = CreateProfileId(baseId, isMouseProfile, isImported);
+        var profileDisplayName = isImported ? $"{displayName} (Imported)" : displayName;
         var defaultClipId = clips.Keys.First();
 
         return new LoadedSoundProfile(
             profileId,
-            $"{displayName} (Imported)",
+            profileDisplayName,
             defaultClipId,
             clips,
             keyMap.Count > 0 ? keyMap : new Dictionary<int, string>(),
             new Dictionary<int, string>(),
-            true);
+            isImported,
+            isMouseProfile,
+            sourceLabel);
     }
 
-    private static LoadedSoundProfile? LoadProfileFromMechvibesConfig(string folderPath, string rawJson, CancellationToken cancellationToken)
+    private static LoadedSoundProfile? LoadProfileFromMechvibesConfig(
+        string folderPath,
+        string rawJson,
+        CancellationToken cancellationToken,
+        bool isMouseProfile,
+        bool isImported,
+        string sourceLabel)
     {
         MechvibesSoundPackConfig? config;
 
@@ -1054,7 +1338,7 @@ public sealed class SoundEngine : ISoundEngine
 
             if (TryGetOrCreateClipFromTiming(
                 sourceSamples,
-                displayName,
+                sourceLabel,
                 timingPairs,
                 0,
                 clips,
@@ -1066,7 +1350,7 @@ public sealed class SoundEngine : ISoundEngine
 
             if (TryGetOrCreateClipFromTiming(
                 sourceSamples,
-                displayName,
+                sourceLabel,
                 timingPairs,
                 1,
                 clips,
@@ -1084,18 +1368,20 @@ public sealed class SoundEngine : ISoundEngine
 
         var normalizedIdSeed = string.IsNullOrWhiteSpace(config.Id) ? displayName : config.Id;
         var baseId = NormalizeToken(normalizedIdSeed);
-        var uniqueId = Guid.NewGuid().ToString("N")[..6];
-        var profileId = $"custom-{baseId}-{uniqueId}";
+        var profileId = CreateProfileId(baseId, isMouseProfile, isImported);
+        var profileDisplayName = isImported ? $"{displayName} (Imported)" : displayName;
         var defaultClipId = clips.Keys.First();
 
         return new LoadedSoundProfile(
             profileId,
-            $"{displayName} (Imported)",
+            profileDisplayName,
             defaultClipId,
             clips,
             keyDownMap.Count > 0 ? keyDownMap : new Dictionary<int, string>(),
             keyUpMap.Count > 0 ? keyUpMap : new Dictionary<int, string>(),
-            true);
+            isImported,
+            isMouseProfile,
+            sourceLabel);
     }
 
     private static bool TryGetOrCreateClipFromTiming(
@@ -1755,7 +2041,9 @@ public sealed class SoundEngine : ISoundEngine
             IReadOnlyDictionary<string, SoundClip> clips,
             IReadOnlyDictionary<int, string> defaultKeyClips,
             IReadOnlyDictionary<int, string> defaultKeyUpClips,
-            bool isImported)
+            bool isImported,
+            bool isMouseProfile,
+            string sourceLabel)
         {
             Id = id;
             DisplayName = displayName;
@@ -1764,6 +2052,8 @@ public sealed class SoundEngine : ISoundEngine
             DefaultKeyClips = defaultKeyClips;
             DefaultKeyUpClips = defaultKeyUpClips;
             IsImported = isImported;
+            IsMouseProfile = isMouseProfile;
+            SourceLabel = sourceLabel;
         }
 
         public string Id { get; }
@@ -1779,6 +2069,10 @@ public sealed class SoundEngine : ISoundEngine
         public IReadOnlyDictionary<int, string> DefaultKeyUpClips { get; }
 
         public bool IsImported { get; }
+
+        public bool IsMouseProfile { get; }
+
+        public string SourceLabel { get; }
     }
 
     private sealed class SoundClip

@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
-using System.Windows.Threading;
 using CLCKTY.App.Core;
 using CLCKTY.App.Services;
 
@@ -11,7 +10,6 @@ public partial class MainWindow : Window
 {
     private SettingsWindow? _settingsWindow;
     private InfoWindow? _infoWindow;
-    private readonly DispatcherTimer _visualizerTimer;
     private readonly Random _visualizerRandom = new();
     private readonly double[] _visualizerBaseHeights = { 24d, 40d, 64d, 80d, 48d, 56d, 30d, 22d, 44d, 68d };
 
@@ -20,13 +18,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         NavigateToSection("Dashboard");
-
-        _visualizerTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(110)
-        };
-
-        _visualizerTimer.Tick += VisualizerTimer_Tick;
+        viewModel.InputTriggered += ViewModel_InputTriggered;
     }
 
     public void ShowPanel()
@@ -63,11 +55,7 @@ public partial class MainWindow : Window
         }
 
         BeginOpenAnimation();
-
-        if (!_visualizerTimer.IsEnabled)
-        {
-            _visualizerTimer.Start();
-        }
+        ResetVisualizerBars();
     }
 
     private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -213,9 +201,47 @@ public partial class MainWindow : Window
             : new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#9FD8C1"));
     }
 
-    private void VisualizerTimer_Tick(object? sender, EventArgs e)
+    private void ViewModel_InputTriggered(object? sender, InputTriggeredPreviewEventArgs e)
     {
-        var bars = new[]
+        Dispatcher.Invoke(() =>
+        {
+            AnimateTestTypingPreview();
+            PulseVisualizer(e.Intensity);
+        });
+    }
+
+    private void AnimateTestTypingPreview()
+    {
+        if (TestTypingPreviewCard.RenderTransform is not System.Windows.Media.ScaleTransform scaleTransform)
+        {
+            scaleTransform = new System.Windows.Media.ScaleTransform(1d, 1d);
+            TestTypingPreviewCard.RenderTransformOrigin = new System.Windows.Point(0.5d, 0.5d);
+            TestTypingPreviewCard.RenderTransform = scaleTransform;
+        }
+
+        var scalePulse = new DoubleAnimation
+        {
+            To = 1.05d,
+            Duration = TimeSpan.FromMilliseconds(90),
+            AutoReverse = true,
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+
+        var opacityPulse = new DoubleAnimation
+        {
+            To = 0.82d,
+            Duration = TimeSpan.FromMilliseconds(90),
+            AutoReverse = true
+        };
+
+        scaleTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, scalePulse, HandoffBehavior.SnapshotAndReplace);
+        scaleTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, scalePulse, HandoffBehavior.SnapshotAndReplace);
+        TestTypingPreviewCard.BeginAnimation(OpacityProperty, opacityPulse, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private System.Windows.Controls.Border[] GetVisualizerBars()
+    {
+        return new[]
         {
             VisualizerBar1,
             VisualizerBar2,
@@ -228,25 +254,49 @@ public partial class MainWindow : Window
             VisualizerBar9,
             VisualizerBar10
         };
+    }
 
-        var intensity = 0.18d;
-
-        if (DataContext is MainViewModel viewModel)
-        {
-            intensity = viewModel.IsEnabled
-                ? Math.Clamp(viewModel.Volume / 100d, 0.2d, 1.0d)
-                : 0.08d;
-        }
+    private void ResetVisualizerBars()
+    {
+        var bars = GetVisualizerBars();
 
         for (var i = 0; i < bars.Length; i++)
         {
-            var baseHeight = _visualizerBaseHeights[i];
-            var wobble = Math.Sin((Environment.TickCount / 140d) + i) * 6d;
-            var randomBoost = _visualizerRandom.NextDouble() * 22d * intensity;
-            var dynamicHeight = Math.Max(12d, (baseHeight * (0.45d + intensity * 0.55d)) + wobble + randomBoost);
+            bars[i].Height = _visualizerBaseHeights[i];
+            bars[i].Opacity = 0.55d;
+        }
+    }
 
-            bars[i].Height = dynamicHeight;
-            bars[i].Opacity = 0.45d + (_visualizerRandom.NextDouble() * 0.55d * Math.Max(0.15d, intensity));
+    private void PulseVisualizer(double intensity)
+    {
+        var bars = GetVisualizerBars();
+        var normalizedIntensity = Math.Clamp(intensity, 0.15d, 1.0d);
+
+        for (var i = 0; i < bars.Length; i++)
+        {
+            var bar = bars[i];
+            var baseHeight = _visualizerBaseHeights[i];
+            var randomBoost = _visualizerRandom.NextDouble() * 34d * normalizedIntensity;
+            var waveBoost = (Math.Sin((Environment.TickCount / 85d) + i) + 1d) * 7d * normalizedIntensity;
+            var peakHeight = Math.Max(12d, baseHeight + randomBoost + waveBoost);
+
+            var pulse = new DoubleAnimation
+            {
+                To = peakHeight,
+                Duration = TimeSpan.FromMilliseconds(95),
+                AutoReverse = true,
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+
+            var opacityPulse = new DoubleAnimation
+            {
+                To = 0.85d + (_visualizerRandom.NextDouble() * 0.15d),
+                Duration = TimeSpan.FromMilliseconds(95),
+                AutoReverse = true
+            };
+
+            bar.BeginAnimation(HeightProperty, pulse, HandoffBehavior.SnapshotAndReplace);
+            bar.BeginAnimation(OpacityProperty, opacityPulse, HandoffBehavior.SnapshotAndReplace);
         }
     }
 }
