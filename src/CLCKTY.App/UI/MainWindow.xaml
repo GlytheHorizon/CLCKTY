@@ -444,6 +444,98 @@
             </Setter>
         </Style>
 
+        <Style x:Key="VerticalVolumeSliderThumbStyle" TargetType="Thumb">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Grid Width="24" Height="24">
+                            <Ellipse Fill="#ECFFF7"
+                                     Stroke="#144A39"
+                                     StrokeThickness="2" />
+                            <Ellipse Fill="{StaticResource AccentBrush}"
+                                     Width="9"
+                                     Height="9"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.9" />
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter Property="Opacity" Value="0.85" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="VerticalVolumeSliderTrackFillStyle" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Width="10"
+                                CornerRadius="5"
+                                HorizontalAlignment="Center"
+                                Background="{StaticResource AccentBrush}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="VerticalVolumeSliderTrackRestStyle" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Width="10"
+                                CornerRadius="5"
+                                HorizontalAlignment="Center"
+                                Background="#254D3D" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="VerticalVolumeSliderStyle" TargetType="Slider">
+            <Setter Property="Orientation" Value="Vertical" />
+            <Setter Property="Width" Value="44" />
+            <Setter Property="MinHeight" Value="170" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid Width="{TemplateBinding Width}">
+                            <Track x:Name="PART_Track"
+                                   Orientation="Vertical"
+                                   IsDirectionReversed="True"
+                                   VerticalAlignment="Stretch"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,10">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Style="{StaticResource VerticalVolumeSliderTrackFillStyle}"
+                                                  Command="Slider.DecreaseLarge" />
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Style="{StaticResource VerticalVolumeSliderTrackRestStyle}"
+                                                  Command="Slider.IncreaseLarge" />
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource VerticalVolumeSliderThumbStyle}" />
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="PART_Track" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="ScrollBarRepeatButtonStyle" TargetType="RepeatButton">
             <Setter Property="Focusable" Value="False" />
             <Setter Property="BorderThickness" Value="0" />
@@ -1317,492 +1409,433 @@
                     <StackPanel Margin="16,14,16,16">
                         <StackPanel x:Name="DashboardSectionPanel"
                                     TextElement.FontFamily="{StaticResource DashboardFontFamily}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="2*" />
-                                <ColumnDefinition Width="12" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
 
                                 <Border Grid.Column="0"
-                                    Style="{StaticResource ModernCardStyle}"
-                                    Background="#161D1B"
-                                    Padding="14">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="12" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="12" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="12" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-
-                                    <!-- Mode Preset Bar -->
-                                        <Border Grid.Row="0"
-                                            Background="#111E19"
-                                            CornerRadius="8"
-                                            Padding="10,8"
-                                            Margin="0,0,0,10">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE790;"
-                                                           FontFamily="Segoe MDL2 Assets"
-                                                           Foreground="{StaticResource AccentBrush}"
-                                                           FontSize="14"
-                                                           VerticalAlignment="Center"
-                                                           Margin="0,0,8,0" />
-                                                <TextBlock Text="Mode"
-                                                           Foreground="{StaticResource TextSecondaryBrush}"
-                                                           FontSize="11"
-                                                           FontWeight="SemiBold"
-                                                           VerticalAlignment="Center" />
-                                            </StackPanel>
-
-                                            <StackPanel Grid.Column="1"
-                                                        Orientation="Horizontal"
-                                                        HorizontalAlignment="Right">
-                                                <Border x:Name="ModeNormalBtn"
-                                                        Background="{StaticResource AccentBrush}"
-                                                        CornerRadius="6"
-                                                        Padding="10,4"
-                                                        Margin="0,0,4,0"
-                                                        Cursor="Hand"
-                                                        MouseLeftButtonDown="ModeNormal_Click">
-                                                    <TextBlock Text="Normal"
-                                                               Foreground="#07241A"
-                                                               FontSize="10"
-                                                               FontWeight="Bold" />
-                                                </Border>
-                                                <Border x:Name="ModeMeetingBtn"
-                                                        Background="#1A3D30"
-                                                        CornerRadius="6"
-                                                        Padding="10,4"
-                                                        Margin="0,0,4,0"
-                                                        Cursor="Hand"
-                                                        MouseLeftButtonDown="ModeMeeting_Click">
-                                                    <TextBlock Text="Meeting"
-                                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                                               FontSize="10"
-                                                               FontWeight="SemiBold" />
-                                                </Border>
-                                                <Border x:Name="ModeGamingBtn"
-                                                        Background="#1A3D30"
-                                                        CornerRadius="6"
-                                                        Padding="10,4"
-                                                        Margin="0,0,4,0"
-                                                        Cursor="Hand"
-                                                        MouseLeftButtonDown="ModeGaming_Click">
-                                                    <TextBlock Text="Gaming"
-                                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                                               FontSize="10"
-                                                               FontWeight="SemiBold" />
-                                                </Border>
-                                                <Border x:Name="ModeSilentBtn"
-                                                        Background="#1A3D30"
-                                                        CornerRadius="6"
-                                                        Padding="10,4"
-                                                        Cursor="Hand"
-                                                        MouseLeftButtonDown="ModeSilent_Click">
-                                                    <TextBlock Text="Silent"
-                                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                                               FontSize="10"
-                                                               FontWeight="SemiBold" />
-                                                </Border>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-
-                                    <StackPanel Grid.Row="2">
-                                        <TextBlock Text="Current Configuration"
-                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
-                                                   FontSize="10"
-                                                   Foreground="#7EB09A"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding SelectedKeyboardProfile.DisplayName, FallbackValue=Keyboard Profile}"
-                                                   Margin="0,4,0,0"
-                                                   FontSize="22"
-                                                   FontWeight="Bold"
-                                                   Foreground="{StaticResource TextPrimaryBrush}" />
-                                        <TextBlock Text="{Binding SelectedMouseProfile.DisplayName, StringFormat=Mouse: {0}, FallbackValue=Mouse: Mouse Profile}"
-                                                   Margin="0,2,0,0"
-                                                   Foreground="{StaticResource AccentBrush}"
-                                                   FontSize="13"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Text="Dual profile routing with low-latency mapping"
-                                                   Margin="0,4,0,0"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   FontSize="11" />
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Row="4">
-                                        <TextBlock Text="Keyboard Profile"
-                                                   FontSize="12"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   Margin="2,0,0,6" />
-
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <Grid Margin="0,0,8,0">
-                                                <ComboBox ItemsSource="{Binding KeyboardProfiles}"
-                                                          SelectedItem="{Binding SelectedKeyboardProfile}"
-                                                          ItemTemplate="{StaticResource ProfileItemTemplate}"
-                                                          MinHeight="38"
-                                                          Padding="10,6,84,6" />
-                                            </Grid>
-
-                                            <Button Grid.Column="1"
-                                                    Width="38"
-                                                    Height="38"
-                                                    ToolTip="Import keyboard pack"
-                                                    Command="{Binding ImportKeyboardSoundPackCommand}"
-                                                    Style="{StaticResource GlowButtonStyle}"
-                                                    Padding="0">
-                                                <TextBlock Text="+"
-                                                           FontSize="18"
-                                                           FontWeight="SemiBold"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center" />
-                                            </Button>
-                                        </Grid>
-
-                                        <TextBlock Text="Mouse Profile"
-                                                   FontSize="12"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   Margin="2,10,0,6" />
-
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <Grid Margin="0,0,8,0">
-                                                <ComboBox ItemsSource="{Binding MouseProfiles}"
-                                                          SelectedItem="{Binding SelectedMouseProfile}"
-                                                          ItemTemplate="{StaticResource ProfileItemTemplate}"
-                                                          MinHeight="38"
-                                                          Padding="10,6,84,6" />
-                                            </Grid>
-
-                                            <Button Grid.Column="1"
-                                                    Width="38"
-                                                    Height="38"
-                                                    ToolTip="Import mouse pack"
-                                                    Command="{Binding ImportMouseSoundPackCommand}"
-                                                    Style="{StaticResource GlowButtonStyle}"
-                                                    Padding="0">
-                                                <TextBlock Text="+"
-                                                           FontSize="18"
-                                                           FontWeight="SemiBold"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center" />
-                                            </Button>
-                                        </Grid>
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Row="6">
-                                        <Grid Margin="0,0,0,4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <TextBlock Text="Master Gain"
-                                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                                       FontSize="12" />
-                                            <TextBlock Grid.Column="1"
-                                                       Foreground="{StaticResource AccentBrush}"
-                                                       FontWeight="Bold"
-                                                       FontSize="18"
-                                                       Text="{Binding Volume, StringFormat={}{0:0}%}" />
-                                        </Grid>
-
-                                        <Slider Minimum="0"
-                                                Maximum="100"
-                                                Value="{Binding Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                VerticalAlignment="Center"
-                                                Style="{StaticResource VolumeSliderStyle}" />
-
-                                        <Grid Margin="0,12,0,4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <TextBlock Text="Keyboard Gain"
-                                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                                       FontSize="12" />
-                                            <TextBlock Grid.Column="1"
-                                                       Foreground="{StaticResource AccentBrush}"
-                                                       FontWeight="Bold"
-                                                       FontSize="13"
-                                                       Text="{Binding KeyboardVolume, StringFormat={}{0:0}%}" />
-                                        </Grid>
-
-                                        <Slider Minimum="0"
-                                                Maximum="100"
-                                                Value="{Binding KeyboardVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                VerticalAlignment="Center"
-                                                Style="{StaticResource VolumeSliderStyle}" />
-
-                                        <Grid Margin="0,10,0,4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <TextBlock Text="Mouse Gain"
-                                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                                       FontSize="12" />
-                                            <TextBlock Grid.Column="1"
-                                                       Foreground="{StaticResource AccentBrush}"
-                                                       FontWeight="Bold"
-                                                       FontSize="13"
-                                                       Text="{Binding MouseVolume, StringFormat={}{0:0}%}" />
-                                        </Grid>
-
-                                        <Slider Minimum="0"
-                                                Maximum="100"
-                                                Value="{Binding MouseVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                VerticalAlignment="Center"
-                                                Style="{StaticResource VolumeSliderStyle}" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-
-                            <Border Grid.Column="2"
-                                    Style="{StaticResource ModernCardStyle}"
-                                    Background="#111917"
-                                    Padding="14">
-                                <StackPanel>
+                                        Style="{StaticResource ModernCardStyle}"
+                                        Background="#161D1B"
+                                        Padding="14">
                                     <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="260" />
+                                        </Grid.RowDefinitions>
 
-                                        <TextBlock Text="Live Input Keycap"
-                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
-                                                   FontSize="14"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Grid.Column="1"
-                                                   Text="&#xE9D9;"
-                                                   FontFamily="Segoe MDL2 Assets"
-                                                   Foreground="{StaticResource AccentBrush}"
-                                                   FontSize="13" />
-                                    </Grid>
-
-                                    <TextBlock Text="Press any key or mouse button."
-                                               Foreground="#8DC4AE"
-                                               FontSize="11"
-                                               Margin="0,4,0,0" />
-
-                                    <Grid Height="118"
-                                          Margin="0,12,0,0">
-                                        <Border x:Name="VisualizerKeycapShadow"
-                                                Width="114"
-                                                Height="84"
+                                        <Border Grid.Row="0"
+                                                Background="#111E19"
                                                 CornerRadius="8"
-                                                Background="#06110D"
-                                                Opacity="0.35"
-                                                VerticalAlignment="Bottom"
-                                                HorizontalAlignment="Center"
-                                                Margin="0,0,0,6" />
-
-                                        <Border x:Name="VisualizerKeycap"
-                                                Width="114"
-                                                Height="84"
-                                                CornerRadius="8"
-                                                Background="#1D3329"
-                                                VerticalAlignment="Top"
-                                                HorizontalAlignment="Center"
-                                                BorderBrush="#2C5A47"
-                                                BorderThickness="1"
-                                                Padding="0,8,0,0"
-                                                RenderTransformOrigin="0.5,0.5">
-                                            <Border.RenderTransform>
-                                                <TransformGroup>
-                                                    <ScaleTransform x:Name="VisualizerKeycapScale"
-                                                                    ScaleX="1"
-                                                                    ScaleY="1" />
-                                                    <TranslateTransform x:Name="VisualizerKeycapTranslate"
-                                                                        Y="0" />
-                                                </TransformGroup>
-                                            </Border.RenderTransform>
-                                            <Border.Effect>
-                                                <DropShadowEffect Color="#040B08"
-                                                                  BlurRadius="14"
-                                                                  ShadowDepth="4"
-                                                                  Opacity="0.55" />
-                                            </Border.Effect>
+                                                Padding="10,8"
+                                                Margin="0,0,0,10">
                                             <Grid>
-                                                <TextBlock x:Name="VisualizerKeycapLabel"
-                                                           Text="A"
-                                                           FontFamily="{StaticResource DashboardHeadingFontFamily}"
-                                                           FontSize="30"
-                                                           Foreground="#EEFFF8"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Top"
-                                                           Margin="0,0,0,8" />
-                                                <TextBlock x:Name="VisualizerKeycapState"
-                                                           Text="READY"
-                                                           Foreground="#9FD8C1"
-                                                           FontFamily="{StaticResource DashboardFontFamily}"
-                                                           FontSize="11"
-                                                           FontWeight="SemiBold"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Bottom"
-                                                           Margin="0,0,0,8" />
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="&#xE790;"
+                                                               FontFamily="Segoe MDL2 Assets"
+                                                               Foreground="{StaticResource AccentBrush}"
+                                                               FontSize="14"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,8,0" />
+                                                    <TextBlock Text="Mode"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               VerticalAlignment="Center" />
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="1"
+                                                            Orientation="Horizontal"
+                                                            HorizontalAlignment="Right">
+                                                    <Border x:Name="ModeNormalBtn"
+                                                            Background="{StaticResource AccentBrush}"
+                                                            CornerRadius="6"
+                                                            Padding="10,4"
+                                                            Margin="0,0,4,0"
+                                                            Cursor="Hand"
+                                                            MouseLeftButtonDown="ModeNormal_Click">
+                                                        <TextBlock Text="Normal"
+                                                                   Foreground="#07241A"
+                                                                   FontSize="10"
+                                                                   FontWeight="Bold" />
+                                                    </Border>
+                                                    <Border x:Name="ModeMeetingBtn"
+                                                            Background="#1A3D30"
+                                                            CornerRadius="6"
+                                                            Padding="10,4"
+                                                            Margin="0,0,4,0"
+                                                            Cursor="Hand"
+                                                            MouseLeftButtonDown="ModeMeeting_Click">
+                                                        <TextBlock Text="Meeting"
+                                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                                   FontSize="10"
+                                                                   FontWeight="SemiBold" />
+                                                    </Border>
+                                                    <Border x:Name="ModeGamingBtn"
+                                                            Background="#1A3D30"
+                                                            CornerRadius="6"
+                                                            Padding="10,4"
+                                                            Margin="0,0,4,0"
+                                                            Cursor="Hand"
+                                                            MouseLeftButtonDown="ModeGaming_Click">
+                                                        <TextBlock Text="Gaming"
+                                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                                   FontSize="10"
+                                                                   FontWeight="SemiBold" />
+                                                    </Border>
+                                                    <Border x:Name="ModeSilentBtn"
+                                                            Background="#1A3D30"
+                                                            CornerRadius="6"
+                                                            Padding="10,4"
+                                                            Cursor="Hand"
+                                                            MouseLeftButtonDown="ModeSilent_Click">
+                                                        <TextBlock Text="Silent"
+                                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                                   FontSize="10"
+                                                                   FontWeight="SemiBold" />
+                                                    </Border>
+                                                </StackPanel>
                                             </Grid>
                                         </Border>
-                                    </Grid>
 
-                                    <Border Margin="0,14,0,0"
-                                            Background="#172320"
-                                            BorderBrush="Transparent"
-                                            BorderThickness="0"
-                                            CornerRadius="8"
-                                            Padding="10,8">
-                                        <StackPanel>
-                                            <TextBlock Text="System Status"
+                                        <StackPanel Grid.Row="2">
+                                            <TextBlock Text="Current Configuration"
+                                                       FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                        FontSize="10"
                                                        Foreground="#7EB09A"
                                                        FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding StatusText}"
-                                                       Margin="0,4,0,0"
-                                                       Foreground="{StaticResource TextPrimaryBrush}"
+
+                                            <Grid Margin="0,8,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel>
+                                                    <TextBlock Text="Keyboard Profile"
+                                                               Foreground="#7EB09A"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding SelectedKeyboardProfile.DisplayName, FallbackValue=Keyboard Profile}"
+                                                               Margin="0,2,0,0"
+                                                               FontSize="22"
+                                                               FontWeight="Bold"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" />
+                                                </StackPanel>
+
+                                                <Border Grid.Column="1"
+                                                        Background="#173629"
+                                                        BorderBrush="#2A7C5E"
+                                                        BorderThickness="1"
+                                                        CornerRadius="10"
+                                                        Padding="10,3"
+                                                        Margin="10,6,0,0"
+                                                        VerticalAlignment="Top">
+                                                    <TextBlock Text="{Binding SelectedKeyboardProfile.SourceLabel, FallbackValue=Unknown Source}"
+                                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel>
+                                                    <TextBlock Text="Mouse Profile"
+                                                               Foreground="#7EB09A"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding SelectedMouseProfile.DisplayName, FallbackValue=Mouse Profile}"
+                                                               Margin="0,2,0,0"
+                                                               FontSize="17"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{StaticResource AccentBrush}" />
+                                                </StackPanel>
+
+                                                <Border Grid.Column="1"
+                                                        Background="#173629"
+                                                        BorderBrush="#2A7C5E"
+                                                        BorderThickness="1"
+                                                        CornerRadius="10"
+                                                        Padding="10,3"
+                                                        Margin="10,2,0,0"
+                                                        VerticalAlignment="Top">
+                                                    <TextBlock Text="{Binding SelectedMouseProfile.SourceLabel, FallbackValue=Unknown Source}"
+                                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold" />
+                                                </Border>
+                                            </Grid>
+
+                                            <TextBlock Text="Dashboard view is read-only. Use Sound Profiles and Mapping pages to edit settings."
+                                                       Margin="0,8,0,0"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
                                                        FontSize="11"
                                                        TextWrapping="Wrap" />
                                         </StackPanel>
-                                    </Border>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
 
-                        <Grid Margin="0,14,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="12" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
+                                        <Border Grid.Row="4"
+                                                Background="#111E19"
+                                                BorderBrush="Transparent"
+                                                BorderThickness="0"
+                                                CornerRadius="8"
+                                                Padding="10,8">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="*" />
+                                                </Grid.RowDefinitions>
 
-                                <Border Grid.Column="0"
-                                    Style="{StaticResource ModernCardStyle}"
-                                    Background="#151E1B"
-                                    Padding="12">
-                                <StackPanel>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Latest Actions"
+                                                           FontFamily="{StaticResource DashboardHeadingFontFamily}"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="13" />
+                                                <TextBlock Grid.Row="1"
+                                                           Text="Profile changes and mapping actions"
+                                                           Foreground="#8DC4AE"
+                                                           FontSize="11"
+                                                           Margin="0,4,0,0" />
 
-                                        <TextBlock Text="Key Mapping"
-                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                                   FontWeight="SemiBold"
-                                                   FontSize="14" />
-
-                                        <Button Grid.Column="1"
-                                                Command="{Binding AddKeyboardMappingCommand}"
-                                                ToolTip="Add keyboard mapping"
-                                                Width="30"
-                                                Height="30"
-                                                Style="{StaticResource GlowButtonStyle}"
-                                                Padding="0">
-                                            <TextBlock FontFamily="Segoe MDL2 Assets"
-                                                       Text="&#xE710;"
-                                                       FontSize="12"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center" />
-                                        </Button>
+                                                <ScrollViewer Grid.Row="2"
+                                                              Margin="0,8,0,0"
+                                                              VerticalScrollBarVisibility="Auto"
+                                                              HorizontalScrollBarVisibility="Disabled">
+                                                    <ItemsControl ItemsSource="{Binding DashboardActivityFeed}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding}"
+                                                                           FontFamily="Consolas"
+                                                                           Foreground="#CFECE0"
+                                                                           FontSize="10"
+                                                                           Margin="0,0,0,4"
+                                                                           TextWrapping="NoWrap"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </ScrollViewer>
+                                            </Grid>
+                                        </Border>
                                     </Grid>
-
-                                    <TextBlock Text="Press +, then press a key to capture mapping input."
-                                               Foreground="#8DC4AE"
-                                               FontSize="11"
-                                               Margin="0,4,0,10"
-                                               TextWrapping="Wrap" />
-
-                                    <ItemsControl ItemsSource="{Binding KeyboardMappings}"
-                                                  ItemTemplate="{StaticResource MappingRowTemplate}" />
-                                </StackPanel>
-                            </Border>
+                                </Border>
 
                                 <Border Grid.Column="2"
-                                    Style="{StaticResource ModernCardStyle}"
-                                    Background="#151E1B"
-                                    Padding="12">
-                                <StackPanel>
+                                        Style="{StaticResource ModernCardStyle}"
+                                        Background="#111917"
+                                        Padding="14">
                                     <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
 
-                                        <TextBlock Text="Mouse Mappings"
-                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                                   FontWeight="SemiBold"
-                                                   FontSize="14" />
+                                        <StackPanel Grid.Row="0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
 
-                                        <Button Grid.Column="1"
-                                                Command="{Binding AddMouseMappingCommand}"
-                                                ToolTip="Add mouse mapping"
-                                                Width="30"
-                                                Height="30"
-                                                Style="{StaticResource GlowButtonStyle}"
-                                                Padding="0">
-                                            <TextBlock FontFamily="Segoe MDL2 Assets"
-                                                       Text="&#xE710;"
-                                                       FontSize="12"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center" />
-                                        </Button>
+                                                <TextBlock Text="Live Input Keycap"
+                                                           FontFamily="{StaticResource DashboardHeadingFontFamily}"
+                                                           FontSize="14"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="&#xE9D9;"
+                                                           FontFamily="Segoe MDL2 Assets"
+                                                           Foreground="{StaticResource AccentBrush}"
+                                                           FontSize="13" />
+                                            </Grid>
+
+                                            <TextBlock Text="Press any key or mouse button."
+                                                       Foreground="#8DC4AE"
+                                                       FontSize="11"
+                                                       Margin="0,4,0,0" />
+
+                                            <Grid Height="118"
+                                                  Margin="0,12,0,0">
+                                                <Border x:Name="VisualizerKeycapShadow"
+                                                        Width="114"
+                                                        Height="84"
+                                                        CornerRadius="8"
+                                                        Background="#06110D"
+                                                        Opacity="0.35"
+                                                        VerticalAlignment="Bottom"
+                                                        HorizontalAlignment="Center"
+                                                        Margin="0,0,0,6" />
+
+                                                <Border x:Name="VisualizerKeycap"
+                                                        Width="114"
+                                                        Height="84"
+                                                        CornerRadius="8"
+                                                        Background="#1D3329"
+                                                        VerticalAlignment="Top"
+                                                        HorizontalAlignment="Center"
+                                                        BorderBrush="#2C5A47"
+                                                        BorderThickness="1"
+                                                        Padding="0,8,0,0"
+                                                        RenderTransformOrigin="0.5,0.5">
+                                                    <Border.RenderTransform>
+                                                        <TransformGroup>
+                                                            <ScaleTransform x:Name="VisualizerKeycapScale"
+                                                                            ScaleX="1"
+                                                                            ScaleY="1" />
+                                                            <TranslateTransform x:Name="VisualizerKeycapTranslate"
+                                                                                Y="0" />
+                                                        </TransformGroup>
+                                                    </Border.RenderTransform>
+                                                    <Border.Effect>
+                                                        <DropShadowEffect Color="#040B08"
+                                                                          BlurRadius="14"
+                                                                          ShadowDepth="4"
+                                                                          Opacity="0.55" />
+                                                    </Border.Effect>
+                                                    <Grid>
+                                                        <TextBlock x:Name="VisualizerKeycapLabel"
+                                                                   Text="A"
+                                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
+                                                                   FontSize="30"
+                                                                   Foreground="#EEFFF8"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Top"
+                                                                   Margin="0,0,0,8" />
+                                                        <TextBlock x:Name="VisualizerKeycapState"
+                                                                   Text="READY"
+                                                                   Foreground="#9FD8C1"
+                                                                   FontFamily="{StaticResource DashboardFontFamily}"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Bottom"
+                                                                   Margin="0,0,0,8" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Border Margin="0,14,0,0"
+                                                    Background="#172320"
+                                                    BorderBrush="Transparent"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8"
+                                                    Padding="10,8">
+                                                <StackPanel>
+                                                    <TextBlock Text="System Status"
+                                                               FontSize="10"
+                                                               Foreground="#7EB09A"
+                                                               FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding StatusText}"
+                                                               Margin="0,4,0,0"
+                                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                                               FontSize="11"
+                                                               TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <Border Grid.Row="2"
+                                                Background="#172320"
+                                                BorderBrush="Transparent"
+                                                BorderThickness="0"
+                                                CornerRadius="8"
+                                                Padding="10,10">
+                                            <StackPanel>
+                                                <TextBlock Text="Volume Controls"
+                                                           FontFamily="{StaticResource DashboardHeadingFontFamily}"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           FontSize="13"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Text="Master, keyboard, and mouse vertical faders"
+                                                           Margin="0,4,0,0"
+                                                           Foreground="#8DC4AE"
+                                                           FontSize="11" />
+
+                                                <Grid Margin="0,12,0,0"
+                                                      HorizontalAlignment="Center">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="18" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="18" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <StackPanel Grid.Column="0"
+                                                                HorizontalAlignment="Center">
+                                                        <TextBlock Text="Master"
+                                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                                   FontSize="10"
+                                                                   HorizontalAlignment="Center" />
+                                                        <TextBlock Text="{Binding Volume, StringFormat={}{0:0}%}"
+                                                                   Foreground="{StaticResource AccentBrush}"
+                                                                   FontSize="13"
+                                                                   FontWeight="Bold"
+                                                                   HorizontalAlignment="Center"
+                                                                   Margin="0,2,0,6" />
+                                                        <Slider Minimum="0"
+                                                                Maximum="100"
+                                                                Value="{Binding Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                Style="{StaticResource VerticalVolumeSliderStyle}" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="2"
+                                                                HorizontalAlignment="Center">
+                                                        <TextBlock Text="Keyboard"
+                                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                                   FontSize="10"
+                                                                   HorizontalAlignment="Center" />
+                                                        <TextBlock Text="{Binding KeyboardVolume, StringFormat={}{0:0}%}"
+                                                                   Foreground="{StaticResource AccentBrush}"
+                                                                   FontSize="13"
+                                                                   FontWeight="Bold"
+                                                                   HorizontalAlignment="Center"
+                                                                   Margin="0,2,0,6" />
+                                                        <Slider Minimum="0"
+                                                                Maximum="100"
+                                                                Value="{Binding KeyboardVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                Style="{StaticResource VerticalVolumeSliderStyle}" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="4"
+                                                                HorizontalAlignment="Center">
+                                                        <TextBlock Text="Mouse"
+                                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                                   FontSize="10"
+                                                                   HorizontalAlignment="Center" />
+                                                        <TextBlock Text="{Binding MouseVolume, StringFormat={}{0:0}%}"
+                                                                   Foreground="{StaticResource AccentBrush}"
+                                                                   FontSize="13"
+                                                                   FontWeight="Bold"
+                                                                   HorizontalAlignment="Center"
+                                                                   Margin="0,2,0,6" />
+                                                        <Slider Minimum="0"
+                                                                Maximum="100"
+                                                                Value="{Binding MouseVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                Style="{StaticResource VerticalVolumeSliderStyle}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
                                     </Grid>
-
-                                    <TextBlock Text="Click an input field, then click a mouse button to capture mapping."
-                                               Foreground="#8DC4AE"
-                                               FontSize="11"
-                                               Margin="0,4,0,10"
-                                               TextWrapping="Wrap" />
-
-                                    <ItemsControl ItemsSource="{Binding MouseMappings}"
-                                                  ItemTemplate="{StaticResource MappingRowTemplate}" />
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-
-                        <Border Margin="0,12,0,0"
-                            Style="{StaticResource ModernCardStyle}"
-                                Background="#0F1E18"
-                                Padding="12"
-                            BorderBrush="Transparent"
-                            BorderThickness="0">
-                            <StackPanel>
-                                <TextBlock Text="{Binding StatusText}"
-                                           Foreground="{StaticResource TextPrimaryBrush}"
-                                           FontSize="12"
-                                           TextWrapping="Wrap" />
-                                <TextBlock Text="CLCKTY only triggers playback and never logs typing."
-                                           Foreground="{StaticResource TextSecondaryBrush}"
-                                           FontSize="11"
-                                           Margin="0,4,0,0"
-                                           TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
+                                </Border>
+                            </Grid>
                         </StackPanel>
 
                         <StackPanel x:Name="SoundProfilesSectionPanel"
@@ -1815,7 +1848,8 @@
                                     <ColumnDefinition Width="1.2*" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0"
+                                <Border x:Name="SoundProfilesMainCard"
+                                    Grid.Column="0"
                                         Style="{StaticResource ModernCardStyle}"
                                         Background="#151E1B"
                                         Padding="14">
@@ -1958,7 +1992,9 @@
                                 <Border Grid.Column="2"
                                         Style="{StaticResource ModernCardStyle}"
                                         Background="#111917"
-                                        Padding="12">
+                                    Padding="12"
+                                    VerticalAlignment="Top"
+                                    MaxHeight="{Binding ActualHeight, ElementName=SoundProfilesMainCard}">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
@@ -1983,19 +2019,22 @@
                                                 CornerRadius="8"
                                                 ClipToBounds="True"
                                                 Padding="8">
-                                            <ItemsControl ItemsSource="{Binding ActivityFeed}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock Text="{Binding}"
-                                                                   FontFamily="Consolas"
-                                                                   Foreground="#CFECE0"
-                                                                   FontSize="10"
-                                                                   Margin="0,0,0,5"
-                                                                   TextWrapping="NoWrap"
-                                                                   TextTrimming="CharacterEllipsis" />
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled">
+                                                <ItemsControl ItemsSource="{Binding ActivityFeed}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding}"
+                                                                       FontFamily="Consolas"
+                                                                       Foreground="#CFECE0"
+                                                                       FontSize="10"
+                                                                       Margin="0,0,0,5"
+                                                                       TextWrapping="NoWrap"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
                                         </Border>
                                     </Grid>
                                 </Border>
@@ -2649,6 +2688,81 @@
                                                        FontWeight="SemiBold" />
                                         </Button>
                                     </Grid>
+
+                                    <Border Margin="0,12,0,0"
+                                            Background="#111E19"
+                                            BorderBrush="#214D3C"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="12">
+                                        <StackPanel>
+                                            <TextBlock Text="Scan for Updates"
+                                                       FontFamily="{StaticResource DashboardHeadingFontFamily}"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       FontSize="16"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock Text="Checks the latest GitHub release and offers one-click download/install."
+                                                       Foreground="#8DC4AE"
+                                                       FontSize="11"
+                                                       Margin="0,4,0,10"
+                                                       TextWrapping="Wrap" />
+
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Current Version:"
+                                                           Foreground="#7EB09A"
+                                                           FontSize="11"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock x:Name="CurrentVersionValueText"
+                                                           Grid.Column="1"
+                                                           Text="v0.0.0"
+                                                           Margin="8,0,0,0"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           VerticalAlignment="Center" />
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Repository:"
+                                                           Foreground="#7EB09A"
+                                                           FontSize="11"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock x:Name="UpdateRepositoryValueText"
+                                                           Grid.Column="1"
+                                                           Text="Not configured"
+                                                           Margin="8,0,0,0"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           VerticalAlignment="Center"
+                                                           TextWrapping="Wrap" />
+                                            </Grid>
+
+                                            <Button x:Name="ScanUpdatesButton"
+                                                    Style="{StaticResource GlowButtonStyle}"
+                                                    Height="38"
+                                                    Click="ScanUpdatesButton_Click">
+                                                <TextBlock Text="Scan for Updates"
+                                                           FontSize="13"
+                                                           FontWeight="SemiBold" />
+                                            </Button>
+
+                                            <TextBlock x:Name="UpdateStatusText"
+                                                       Margin="0,8,0,0"
+                                                       Foreground="#CFECE0"
+                                                       FontSize="11"
+                                                       TextWrapping="Wrap"
+                                                       Text="Ready to scan for updates." />
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

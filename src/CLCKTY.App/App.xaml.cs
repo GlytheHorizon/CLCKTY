@@ -1,6 +1,7 @@
 using CLCKTY.App.Core;
 using CLCKTY.App.Services;
 using CLCKTY.App.UI;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Wpf = System.Windows;
 using Threading = System.Threading;
@@ -24,6 +25,13 @@ public partial class App : Wpf.Application
 	private bool _isCleanedUp;
 	private readonly HashSet<int> _pressedKeys = new();
 	private readonly HashSet<string> _latchedHotkeys = new(StringComparer.OrdinalIgnoreCase);
+	private readonly ConcurrentQueue<PendingStatsEvent> _pendingStatsEvents = new();
+	private int _statsWorkerScheduled;
+	private int _queuedPreviewInputCode = -1;
+	private int _queuedPreviewTrigger;
+	private int _queuedPreviewVersion;
+	private int _lastDispatchedPreviewVersion;
+	private int _uiPreviewDispatchScheduled;
 
 	protected override void OnStartup(Wpf.StartupEventArgs e)
 	{
@@ -45,12 +53,6 @@ public partial class App : Wpf.Application
 		_startupService = new StartupService();
 		_statsService = new StatsService();
 		_mainViewModel = new MainViewModel(_soundEngine, _startupService);
-		_mainWindow = new MainWindow(_mainViewModel);
-		_mainWindow.SetStatsService(_statsService);
-		_mainWindow.SetSoundEngine(_soundEngine);
-
-		_mainWindow.Closing += MainWindow_Closing;
-		_mainWindow.StateChanged += MainWindow_StateChanged;
 
 		_trayService = new TrayService();
 		_trayService.OpenRequested += TrayService_OpenRequested;
@@ -100,9 +102,9 @@ public partial class App : Wpf.Application
 		}
 
 		var keyboardVolume = (float)(_mainViewModel.KeyboardVolume / 100d);
-		_mainViewModel.ReportInputTriggered(e.VirtualKey, KeyEventTrigger.Down);
 		_soundEngine?.StartHoldForKey(e.VirtualKey, keyboardVolume);
-		_statsService?.RecordKeyboardClick(e.VirtualKey);
+		QueueInputPreview(e.VirtualKey, KeyEventTrigger.Down);
+		QueueStatsEvent(isKeyboard: true, e.VirtualKey);
 	}
 
 	private void KeyboardHookService_KeyUp(object? sender, GlobalKeyPressedEventArgs e)
@@ -120,7 +122,7 @@ public partial class App : Wpf.Application
 
 		if (_mainViewModel.IsEnabled)
 		{
-			_mainViewModel.ReportInputTriggered(e.VirtualKey, KeyEventTrigger.Up);
+			QueueInputPreview(e.VirtualKey, KeyEventTrigger.Up);
 		}
 
 		_soundEngine?.ReleaseForKey(e.VirtualKey, keyboardVolume);
@@ -139,9 +141,9 @@ public partial class App : Wpf.Application
 		}
 
 		var mouseVolume = (float)(_mainViewModel.MouseVolume / 100d);
-		_mainViewModel.ReportInputTriggered(e.InputCode, KeyEventTrigger.Down);
 		_soundEngine?.StartHoldForKey(e.InputCode, mouseVolume);
-		_statsService?.RecordMouseClick(e.InputCode);
+		QueueInputPreview(e.InputCode, KeyEventTrigger.Down);
+		QueueStatsEvent(isKeyboard: false, e.InputCode);
 	}
 
 	private void KeyboardHookService_MouseUp(object? sender, GlobalMouseButtonEventArgs e)
@@ -156,7 +158,7 @@ public partial class App : Wpf.Application
 
 		if (_mainViewModel.IsEnabled)
 		{
-			_mainViewModel.ReportInputTriggered(e.InputCode, KeyEventTrigger.Up);
+			QueueInputPreview(e.InputCode, KeyEventTrigger.Up);
 		}
 
 		_soundEngine?.ReleaseForKey(e.InputCode, mouseVolume);
@@ -211,7 +213,31 @@ public partial class App : Wpf.Application
 
 	private void ShowControlPanel()
 	{
+		EnsureMainWindowCreated();
 		_mainWindow?.ShowPanel();
+	}
+
+	private void EnsureMainWindowCreated()
+	{
+		if (_mainWindow is not null || _mainViewModel is null)
+		{
+			return;
+		}
+
+		_mainWindow = new MainWindow(_mainViewModel);
+
+		if (_statsService is not null)
+		{
+			_mainWindow.SetStatsService(_statsService);
+		}
+
+		if (_soundEngine is not null)
+		{
+			_mainWindow.SetSoundEngine(_soundEngine);
+		}
+
+		_mainWindow.Closing += MainWindow_Closing;
+		_mainWindow.StateChanged += MainWindow_StateChanged;
 	}
 
 	private void RequestExit()
@@ -267,6 +293,13 @@ public partial class App : Wpf.Application
 			_keyboardHookService = null;
 		}
 
+		if (_mainWindow is not null)
+		{
+			_mainWindow.Closing -= MainWindow_Closing;
+			_mainWindow.StateChanged -= MainWindow_StateChanged;
+			_mainWindow = null;
+		}
+
 		if (_soundEngine is not null)
 		{
 			_soundEngine.Dispose();
@@ -280,6 +313,8 @@ public partial class App : Wpf.Application
 			_singleInstanceMutex = null;
 		}
 
+		WaitForStatsQueueToDrain();
+		DrainStatsQueue();
 		_statsService?.ForceSave();
 	}
 
@@ -351,6 +386,154 @@ public partial class App : Wpf.Application
 		var ctrlPressed = _pressedKeys.Contains(0x11) || _pressedKeys.Contains(0xA2) || _pressedKeys.Contains(0xA3);
 		var altPressed = _pressedKeys.Contains(0x12) || _pressedKeys.Contains(0xA4) || _pressedKeys.Contains(0xA5);
 		return ctrlPressed && altPressed;
+	}
+
+	private void QueueInputPreview(int inputCode, KeyEventTrigger trigger)
+	{
+		if (_mainViewModel is null || _mainWindow is null || !_mainWindow.IsVisible)
+		{
+			return;
+		}
+
+		Threading.Volatile.Write(ref _queuedPreviewInputCode, inputCode);
+		Threading.Volatile.Write(ref _queuedPreviewTrigger, (int)trigger);
+		Threading.Interlocked.Increment(ref _queuedPreviewVersion);
+
+		if (Threading.Interlocked.CompareExchange(ref _uiPreviewDispatchScheduled, 1, 0) != 0)
+		{
+			return;
+		}
+
+		_ = Dispatcher.BeginInvoke(FlushQueuedInputPreview, System.Windows.Threading.DispatcherPriority.Background);
+	}
+
+	private void FlushQueuedInputPreview()
+	{
+		try
+		{
+			while (true)
+			{
+				var pendingVersion = Threading.Volatile.Read(ref _queuedPreviewVersion);
+				var dispatchedVersion = Threading.Volatile.Read(ref _lastDispatchedPreviewVersion);
+
+				if (pendingVersion == dispatchedVersion)
+				{
+					break;
+				}
+
+				if (_mainViewModel is null || _mainWindow is null || !_mainWindow.IsVisible)
+				{
+					Threading.Volatile.Write(ref _lastDispatchedPreviewVersion, pendingVersion);
+					break;
+				}
+
+				var inputCode = Threading.Volatile.Read(ref _queuedPreviewInputCode);
+				var trigger = (KeyEventTrigger)Threading.Volatile.Read(ref _queuedPreviewTrigger);
+				_mainViewModel.ReportInputTriggered(inputCode, trigger);
+				Threading.Volatile.Write(ref _lastDispatchedPreviewVersion, pendingVersion);
+			}
+		}
+		finally
+		{
+			Threading.Interlocked.Exchange(ref _uiPreviewDispatchScheduled, 0);
+
+			if (Threading.Volatile.Read(ref _queuedPreviewVersion) != Threading.Volatile.Read(ref _lastDispatchedPreviewVersion)
+				&& Threading.Interlocked.CompareExchange(ref _uiPreviewDispatchScheduled, 1, 0) == 0)
+			{
+				_ = Dispatcher.BeginInvoke(FlushQueuedInputPreview, System.Windows.Threading.DispatcherPriority.Background);
+			}
+		}
+	}
+
+	private void QueueStatsEvent(bool isKeyboard, int inputCode)
+	{
+		_pendingStatsEvents.Enqueue(new PendingStatsEvent(isKeyboard, inputCode));
+		ScheduleStatsQueueProcessing();
+	}
+
+	private void ScheduleStatsQueueProcessing()
+	{
+		if (Threading.Interlocked.CompareExchange(ref _statsWorkerScheduled, 1, 0) != 0)
+		{
+			return;
+		}
+
+		Threading.ThreadPool.UnsafeQueueUserWorkItem(static state =>
+		{
+			((App)state!).ProcessStatsQueue();
+		}, this, true);
+	}
+
+	private void ProcessStatsQueue()
+	{
+		try
+		{
+			while (_pendingStatsEvents.TryDequeue(out var statsEvent))
+			{
+				if (_statsService is null)
+				{
+					continue;
+				}
+
+				if (statsEvent.IsKeyboard)
+				{
+					_statsService.RecordKeyboardClick(statsEvent.InputCode);
+				}
+				else
+				{
+					_statsService.RecordMouseClick(statsEvent.InputCode);
+				}
+			}
+		}
+		finally
+		{
+			Threading.Interlocked.Exchange(ref _statsWorkerScheduled, 0);
+
+			if (!_pendingStatsEvents.IsEmpty)
+			{
+				ScheduleStatsQueueProcessing();
+			}
+		}
+	}
+
+	private void WaitForStatsQueueToDrain()
+	{
+		_ = Threading.SpinWait.SpinUntil(
+			() => Threading.Volatile.Read(ref _statsWorkerScheduled) == 0 && _pendingStatsEvents.IsEmpty,
+			2000);
+	}
+
+	private void DrainStatsQueue()
+	{
+		if (_statsService is null)
+		{
+			return;
+		}
+
+		while (_pendingStatsEvents.TryDequeue(out var statsEvent))
+		{
+			if (statsEvent.IsKeyboard)
+			{
+				_statsService.RecordKeyboardClick(statsEvent.InputCode);
+			}
+			else
+			{
+				_statsService.RecordMouseClick(statsEvent.InputCode);
+			}
+		}
+	}
+
+	private readonly struct PendingStatsEvent
+	{
+		public PendingStatsEvent(bool isKeyboard, int inputCode)
+		{
+			IsKeyboard = isKeyboard;
+			InputCode = inputCode;
+		}
+
+		public bool IsKeyboard { get; }
+
+		public int InputCode { get; }
 	}
 }
 

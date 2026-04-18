@@ -36,7 +36,8 @@ public sealed class SoundEngine : ISoundEngine
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<(int virtualKey, KeyEventTrigger trigger), string> _keyMappings = new();
     private readonly HashSet<int> _heldKeys = new();
-    private readonly Dictionary<int, CachedSound> _pendingSecondHalf = new();
+    private readonly Dictionary<int, PendingClipSegment> _pendingSecondHalf = new();
+    private readonly HashSet<int> _suppressAutoReleaseForMappedDown = new();
 
     private bool _isEnabled = true;
     private float _masterVolume = 0.75f;
@@ -440,15 +441,27 @@ public sealed class SoundEngine : ISoundEngine
             {
                 clipToPlay = mappedDownClip;
                 _pendingSecondHalf.Remove(virtualKey);
+
+                if (hasMappedUpClip)
+                {
+                    _suppressAutoReleaseForMappedDown.Remove(virtualKey);
+                }
+                else
+                {
+                    _suppressAutoReleaseForMappedDown.Add(virtualKey);
+                }
             }
             else if (hasMappedUpClip)
             {
                 // Up-only custom mappings should only trigger on release.
+                _suppressAutoReleaseForMappedDown.Remove(virtualKey);
                 _pendingSecondHalf.Remove(virtualKey);
                 return;
             }
             else
             {
+                _suppressAutoReleaseForMappedDown.Remove(virtualKey);
+
                 var clipId = ResolveClipForKey(profile, virtualKey, KeyEventTrigger.Down);
                 if (!profile.Clips.TryGetValue(clipId, out clipToPlay))
                 {
@@ -505,12 +518,13 @@ public sealed class SoundEngine : ISoundEngine
                     return;
                 }
 
-                // prepare and store second half
+                // Keep only segment offsets for release; avoid per-key array allocations.
                 if (half < total)
                 {
-                    var remaining = new float[total - half];
-                    Array.Copy(audio, half, remaining, 0, remaining.Length);
-                    _pendingSecondHalf[virtualKey] = new CachedSound(clipToPlay.Sound.WaveFormat, remaining);
+                    _pendingSecondHalf[virtualKey] = new PendingClipSegment(
+                        clipToPlay.Sound,
+                        half,
+                        total - half);
                 }
 
                 _mixer.AddMixerInput(firstProvider);
@@ -526,7 +540,8 @@ public sealed class SoundEngine : ISoundEngine
     public void ReleaseForKey(int virtualKey, float categoryVolume = 1f)
     {
         SoundClip? mappedUpClip = null;
-        CachedSound? second = null;
+        PendingClipSegment? second = null;
+        var suppressAutoRelease = false;
         float volume;
         var isMouseInput = InputBindingCode.IsMouseCode(virtualKey);
 
@@ -542,9 +557,12 @@ public sealed class SoundEngine : ISoundEngine
             if (_profiles.TryGetValue(activeProfileId, out var oneShotProfile)
                 && IsOneShotCustomProfile(oneShotProfile))
             {
+                _suppressAutoReleaseForMappedDown.Remove(virtualKey);
                 _pendingSecondHalf.Remove(virtualKey);
                 return;
             }
+
+            suppressAutoRelease = _suppressAutoReleaseForMappedDown.Remove(virtualKey);
 
             if (_profiles.TryGetValue(activeProfileId, out var profile)
                 && TryResolveMappedClip(virtualKey, KeyEventTrigger.Up, profile, out var resolvedUpClip)
@@ -553,7 +571,8 @@ public sealed class SoundEngine : ISoundEngine
                 mappedUpClip = resolvedUpClip;
             }
 
-            if (mappedUpClip is null
+            if (!suppressAutoRelease
+                && mappedUpClip is null
                 && _profiles.TryGetValue(activeProfileId, out var activeProfile)
                 && activeProfile.DefaultKeyUpClips.TryGetValue(virtualKey, out var defaultUpClipId)
                 && activeProfile.Clips.TryGetValue(defaultUpClipId, out var resolvedDefaultUpClip))
@@ -561,7 +580,9 @@ public sealed class SoundEngine : ISoundEngine
                 mappedUpClip = resolvedDefaultUpClip;
             }
 
-            if (mappedUpClip is null && _pendingSecondHalf.TryGetValue(virtualKey, out var cached))
+            if (!suppressAutoRelease
+                && mappedUpClip is null
+                && _pendingSecondHalf.TryGetValue(virtualKey, out var cached))
             {
                 second = cached;
             }
@@ -596,7 +617,12 @@ public sealed class SoundEngine : ISoundEngine
                 return;
             }
 
-            var provider = new VolumeSampleProvider(new CachedSoundSampleProvider(second))
+            var pendingSegment = second.Value;
+
+            var provider = new VolumeSampleProvider(new PartialCachedSoundSampleProvider(
+                pendingSegment.Sound,
+                pendingSegment.StartIndex,
+                pendingSegment.Length))
             {
                 Volume = volume
             };
@@ -1044,18 +1070,43 @@ public sealed class SoundEngine : ISoundEngine
 
         foreach (var profileFolder in Directory.EnumerateDirectories(categoryFolder, "*", SearchOption.TopDirectoryOnly))
         {
+            var sourceLabel = ResolveBundledProfileSourceLabel(profileFolder, isMouseProfile);
+
             var loaded = LoadProfileFromFolder(
                 profileFolder,
                 CancellationToken.None,
                 isMouseProfile,
                 false,
-                MechvibesPreviewCredit);
+                sourceLabel);
 
             if (loaded is not null)
             {
                 yield return loaded;
             }
         }
+    }
+
+    private static string ResolveBundledProfileSourceLabel(string profileFolderPath, bool isMouseProfile)
+    {
+        if (isMouseProfile)
+        {
+            return MechvibesPreviewCredit;
+        }
+
+        var folderName = Path.GetFileName(profileFolderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+        if (string.Equals(folderName, "Razer Green (Blackwidow Elite) - Akira", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(folderName, "tealios-v2_Akira", StringComparison.OrdinalIgnoreCase))
+        {
+            return "by Akira";
+        }
+
+        if (string.Equals(folderName, "Model F XT", StringComparison.OrdinalIgnoreCase))
+        {
+            return "by Unknown";
+        }
+
+        return MechvibesPreviewCredit;
     }
 
     private static string ResolveBundledSoundsRoot()
@@ -2245,9 +2296,26 @@ public sealed class SoundEngine : ISoundEngine
         return new WaveOutEvent
         {
             DeviceNumber = deviceNumber,
+            // Slightly higher buffering avoids crackle on some drivers while staying responsive.
             DesiredLatency = 60,
             NumberOfBuffers = 3
         };
+    }
+
+    private readonly struct PendingClipSegment
+    {
+        public PendingClipSegment(CachedSound sound, int startIndex, int length)
+        {
+            Sound = sound;
+            StartIndex = startIndex;
+            Length = length;
+        }
+
+        public CachedSound Sound { get; }
+
+        public int StartIndex { get; }
+
+        public int Length { get; }
     }
 
     [DllImport("user32.dll")]

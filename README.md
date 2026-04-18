@@ -1,57 +1,75 @@
 # CLCKTY
 
-CLCKTY is a lightweight global keyboard sound engine for Windows built with .NET 8, WPF, and NAudio.
+CLCKTY is a Windows desktop utility that plays keyboard and mouse sounds globally.
+It is built with .NET 8, WPF, and NAudio, and designed as a lightweight background app with low-latency playback.
 
-## Features
+## What CLCKTY Does
 
-- Global keyboard hook with low overhead (no key logging)
-- Low-latency sound playback with preloaded/cached clips
-- Built-in sound profiles plus custom sound pack import
-- Optional per-key sound mapping
-- System tray behavior:
-  - Open panel
-  - Toggle sounds on/off
-  - Exit
-- Start with Windows option
-- Compact floating dark UI panel with fade-in animation
+- Captures global keyboard and mouse input (without storing typed text)
+- Plays cached sounds with low-latency routing
+- Supports separate keyboard and mouse profiles
+- Supports per-input custom mappings (key/mouse to specific sound)
+- Supports custom pack import and per-mapping audio upload
+- Runs in tray mode with quick toggle/open/exit actions
+- Supports startup with Windows
+- Includes an in-app updater (GitHub release scan/download/apply)
 
-## Architecture
+## Inspiration and Credits
 
-- Core
-  - KeyboardHookService: Global key detection via SetWindowsHookEx
-  - SoundEngine: NAudio playback, profile management, key mapping
-- Services
-  - TrayService: NotifyIcon and tray menu behavior
-  - StartupService: Startup registration via HKCU Run key
-- UI
-  - MainWindow: Floating panel
-  - MainViewModel: Binding and commands
+This project is inspired by:
+
+- Keeby
+- MechVibes
+
+Important attribution:
+
+- Stock sounds and bundled soundpacks are sourced from MechVibes and other community soundpacks.
+- I do not claim ownership of those sound assets.
+- The CLCKTY application code/implementation is created by me.
 
 ## Safety
 
-CLCKTY does not store or transmit keystrokes.
-Key events only trigger sound playback.
+CLCKTY does not record, store, or transmit your keystrokes.
+Input events are used only to trigger local sound playback.
 
 ## Build and Run
 
-1. Open the solution: CLCKTY.slnx
-2. Build in Visual Studio 2022 (or newer) targeting net8.0-windows.
-3. Run the CLCKTY.App project.
+1. Open solution: `CLCKTY.slnx`
+2. Build in Visual Studio 2022+ targeting `net8.0-windows`
+3. Run `CLCKTY.App`
 
-From terminal:
+Terminal commands:
 
-- dotnet build CLCKTY.slnx -c Debug
-- dotnet run --project src/CLCKTY.App/CLCKTY.App.csproj
+- `dotnet build CLCKTY.slnx -c Debug`
+- `dotnet run --project src/CLCKTY.App/CLCKTY.App.csproj`
 
-## Custom Sound Packs
+## Auto Update (GitHub Releases)
 
-Use Import Pack in the UI and select a folder containing WAV files.
+Settings -> Scan for Updates checks the latest GitHub release and can download + stage install automatically.
 
-Examples:
+Default updater target:
 
-- default.wav
-- accent.wav
-- heavy.wav
+- `https://github.com/GlytheHorizon/CLCKTY`
 
-The file name becomes the clip label in the mapping dropdown.
-If default.wav exists, it is used as the default clip for that profile.
+Optional updater overrides:
+
+- `CLCKTY_GITHUB_OWNER` (use a different owner)
+- `CLCKTY_GITHUB_REPO` (use a different repository)
+- `CLCKTY_GITHUB_TOKEN` (needed for private repositories)
+
+Release requirement:
+
+- Publish release assets as `.zip` packages containing the app files.
+
+Update flow:
+
+1. Scan for updates
+2. If newer version found, app asks to download
+3. App downloads and stages update
+4. App asks for restart
+5. On restart, updater script applies files and relaunches CLCKTY
+
+## License
+
+This project is open source under the MIT License.
+See `LICENSE` for details.

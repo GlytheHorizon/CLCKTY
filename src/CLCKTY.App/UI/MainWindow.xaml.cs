@@ -42,12 +42,18 @@ public partial class MainWindow : Window
 
     private WaveOutEvent? _previewOutput;
     private AudioFileReader? _previewReader;
+    private readonly GitHubUpdateService _updateService = new();
+    private PreparedUpdatePackage? _preparedUpdatePackage;
+    private bool _isScanForUpdatesRunning;
 
     private static readonly string[] AchievementRankPages =
     [
         "F", "E", "D", "C", "B", "A", "S", "SS", "SSS", "EX"
     ];
     private int _achievementPageIndex;
+    private int _lastRenderedAchievementPage = -1;
+    private int _lastRenderedUnlockedCount = -1;
+    private string _lastRenderedMainTitle = string.Empty;
 
     private sealed class OutputDeviceOption
     {
@@ -75,6 +81,8 @@ public partial class MainWindow : Window
         };
         _statsRefreshTimer.Tick += (_, _) => RefreshStatsDisplay();
 
+        IsVisibleChanged += (_, _) => UpdateStatsTimerState();
+
         Closed += (_, _) =>
         {
             _statsRefreshTimer.Stop();
@@ -87,7 +95,7 @@ public partial class MainWindow : Window
     {
         _statsService = statsService;
         RefreshStatsDisplay();
-        _statsRefreshTimer.Start();
+        UpdateStatsTimerState();
     }
 
     public void SetSoundEngine(ISoundEngine soundEngine)
@@ -115,6 +123,7 @@ public partial class MainWindow : Window
         Activate();
         Opacity = 0;
         BeginOpenAnimation();
+        UpdateStatsTimerState();
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -136,6 +145,7 @@ public partial class MainWindow : Window
         BeginOpenAnimation();
         InitializeVisualizerKeycap();
         LoadOutputDevices();
+        InitializeUpdateSection();
         RefreshCreatedPackagesList();
     }
 
@@ -288,11 +298,18 @@ public partial class MainWindow : Window
 
     private void ViewModel_InputTriggered(object? sender, InputTriggeredPreviewEventArgs e)
     {
-        Dispatcher.Invoke(() =>
+        if (Dispatcher.CheckAccess())
         {
             AnimateTestTypingPreview();
             AnimateInputKeycap(e);
-        });
+            return;
+        }
+
+        _ = Dispatcher.BeginInvoke(() =>
+        {
+            AnimateTestTypingPreview();
+            AnimateInputKeycap(e);
+        }, DispatcherPriority.Render);
     }
 
     private void AnimateTestTypingPreview()
@@ -492,7 +509,9 @@ public partial class MainWindow : Window
                 : $"{levelsRemaining} level(s) remaining until {nextRank}.";
         }
 
-        StatsMainTitleText.Text = _statsService.MainTitle;
+        var mainTitle = _statsService.MainTitle;
+
+        StatsMainTitleText.Text = mainTitle;
         StatsSecondaryTitleText.Text = _statsService.SecondaryTitle;
 
         StatsTotalClackityText.Text = _statsService.TotalClackity.ToString("N0");
@@ -503,7 +522,61 @@ public partial class MainWindow : Window
         StatsMouseClicksText.Text = _statsService.TotalMouseClicks.ToString("N0");
 
         UpdateStatsXpBar(xpProgress);
-        RebuildAchievementsList();
+
+        if (StatsSectionPanel.Visibility == Visibility.Visible)
+        {
+            var unlockedCount = _statsService.UnlockedTitles.Count;
+            if (ShouldRebuildAchievementsList(unlockedCount, mainTitle))
+            {
+                RebuildAchievementsList();
+            }
+        }
+    }
+
+    private void UpdateStatsTimerState()
+    {
+        if (_statsService is null)
+        {
+            _statsRefreshTimer.Stop();
+            return;
+        }
+
+        if (IsVisible)
+        {
+            if (!_statsRefreshTimer.IsEnabled)
+            {
+                _statsRefreshTimer.Start();
+            }
+
+            return;
+        }
+
+        if (_statsRefreshTimer.IsEnabled)
+        {
+            _statsRefreshTimer.Stop();
+        }
+    }
+
+    private bool ShouldRebuildAchievementsList(int unlockedCount, string mainTitle)
+    {
+        if (_lastRenderedAchievementPage == _achievementPageIndex
+            && _lastRenderedUnlockedCount == unlockedCount
+            && string.Equals(_lastRenderedMainTitle, mainTitle, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        _lastRenderedAchievementPage = _achievementPageIndex;
+        _lastRenderedUnlockedCount = unlockedCount;
+        _lastRenderedMainTitle = mainTitle;
+        return true;
+    }
+
+    private void InvalidateAchievementsRenderCache()
+    {
+        _lastRenderedAchievementPage = -1;
+        _lastRenderedUnlockedCount = -1;
+        _lastRenderedMainTitle = string.Empty;
     }
 
     private static string ResolveDisplayRank(int level)
@@ -737,6 +810,7 @@ public partial class MainWindow : Window
         }
 
         _achievementPageIndex--;
+        InvalidateAchievementsRenderCache();
         RebuildAchievementsList();
     }
 
@@ -748,6 +822,7 @@ public partial class MainWindow : Window
         }
 
         _achievementPageIndex++;
+        InvalidateAchievementsRenderCache();
         RebuildAchievementsList();
     }
 
@@ -762,6 +837,7 @@ public partial class MainWindow : Window
             ? "Newbie Clacker"
             : titleName;
 
+        InvalidateAchievementsRenderCache();
         RefreshStatsDisplay();
     }
 
@@ -867,6 +943,129 @@ public partial class MainWindow : Window
         BufferCountText.Text = "2";
         LatencyStatusText.Text = "Optimized";
         LatencyStatusText.Foreground = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#22D883"));
+    }
+
+    private void InitializeUpdateSection()
+    {
+        CurrentVersionValueText.Text = _updateService.CurrentVersionLabel;
+        UpdateRepositoryValueText.Text = _updateService.RepositoryDisplay;
+
+        UpdateStatusText.Text = _updateService.IsRepositoryConfigured
+            ? "Ready to scan for updates."
+            : "Updater repository is not configured yet.";
+    }
+
+    private async void ScanUpdatesButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isScanForUpdatesRunning)
+        {
+            return;
+        }
+
+        _isScanForUpdatesRunning = true;
+        ScanUpdatesButton.IsEnabled = false;
+
+        try
+        {
+            if (_preparedUpdatePackage is not null)
+            {
+                var applyReadyDialog = new ConfirmActionDialog(
+                    "Update Ready",
+                    $"{_preparedUpdatePackage.VersionLabel} is already downloaded. Restart now to install?",
+                    "Restart")
+                {
+                    Owner = this
+                };
+
+                if (applyReadyDialog.ShowDialog() == true)
+                {
+                    var applyResult = _updateService.StartPreparedUpdateAndRestart(_preparedUpdatePackage);
+                    if (!applyResult.IsSuccessful)
+                    {
+                        UpdateStatusText.Text = applyResult.Message;
+                        return;
+                    }
+
+                    UpdateStatusText.Text = "Restarting to install update...";
+                    System.Windows.Application.Current.Shutdown();
+                    return;
+                }
+            }
+
+            UpdateStatusText.Text = "Scanning GitHub for latest release...";
+            var checkResult = await _updateService.CheckForUpdateAsync().ConfigureAwait(true);
+
+            if (!checkResult.IsSuccessful)
+            {
+                UpdateStatusText.Text = checkResult.Message;
+                return;
+            }
+
+            if (!checkResult.UpdateAvailable)
+            {
+                UpdateStatusText.Text = checkResult.Message;
+                return;
+            }
+
+            var confirmDownloadDialog = new ConfirmActionDialog(
+                "Update Detected",
+                $"{checkResult.LatestVersionLabel} detected. Download and install now?",
+                "Download")
+            {
+                Owner = this
+            };
+
+            if (confirmDownloadDialog.ShowDialog() != true)
+            {
+                UpdateStatusText.Text = $"Update available: {checkResult.LatestVersionLabel}.";
+                return;
+            }
+
+            UpdateStatusText.Text = $"Downloading {checkResult.LatestVersionLabel}...";
+            var preparationResult = await _updateService.DownloadAndPrepareUpdateAsync(checkResult).ConfigureAwait(true);
+
+            if (!preparationResult.IsSuccessful || preparationResult.Package is null)
+            {
+                UpdateStatusText.Text = preparationResult.Message;
+                return;
+            }
+
+            _preparedUpdatePackage = preparationResult.Package;
+            UpdateStatusText.Text = $"{_preparedUpdatePackage.VersionLabel} downloaded. Restart to install.";
+
+            var restartDialog = new ConfirmActionDialog(
+                "Restart Required",
+                "Update finished downloading. Restart now to install it automatically?",
+                "Restart")
+            {
+                Owner = this
+            };
+
+            if (restartDialog.ShowDialog() != true)
+            {
+                UpdateStatusText.Text = "Update downloaded. Use Scan for Updates to apply on next restart.";
+                return;
+            }
+
+            var startResult = _updateService.StartPreparedUpdateAndRestart(_preparedUpdatePackage);
+            if (!startResult.IsSuccessful)
+            {
+                UpdateStatusText.Text = startResult.Message;
+                return;
+            }
+
+            UpdateStatusText.Text = "Restarting to install update...";
+            System.Windows.Application.Current.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText.Text = $"Update operation failed: {ex.Message}";
+        }
+        finally
+        {
+            _isScanForUpdatesRunning = false;
+            ScanUpdatesButton.IsEnabled = true;
+        }
     }
 
     private void CreatePackButton_Click(object sender, RoutedEventArgs e)

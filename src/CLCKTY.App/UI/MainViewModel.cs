@@ -11,7 +11,8 @@ namespace CLCKTY.App.UI;
 public sealed class MainViewModel : ViewModelBase
 {
     private const KeyEventTrigger DefaultMappingTrigger = KeyEventTrigger.Down;
-    private const int MaxLiveActivityEntries = 8;
+    private const int MaxLiveActivityEntries = 12;
+    private const int MaxDashboardActivityEntries = 80;
     private const int MaxCategoryActivityEntries = 40;
 
     private readonly ISoundEngine _soundEngine;
@@ -52,6 +53,7 @@ public sealed class MainViewModel : ViewModelBase
         KeyboardMappings = new ObservableCollection<KeyMappingRowViewModel>();
         MouseMappings = new ObservableCollection<KeyMappingRowViewModel>();
         ActivityFeed = new ObservableCollection<string>();
+        DashboardActivityFeed = new ObservableCollection<string>();
         KeyboardActivityFeed = new ObservableCollection<string>();
         MouseActivityFeed = new ObservableCollection<string>();
 
@@ -99,6 +101,8 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<KeyMappingRowViewModel> MouseMappings { get; }
 
     public ObservableCollection<string> ActivityFeed { get; }
+
+    public ObservableCollection<string> DashboardActivityFeed { get; }
 
     public ObservableCollection<string> KeyboardActivityFeed { get; }
 
@@ -244,6 +248,7 @@ public sealed class MainViewModel : ViewModelBase
                 return;
             }
 
+            AppendDashboardActivity(value);
             AppendActivity(value);
         }
     }
@@ -893,6 +898,18 @@ public sealed class MainViewModel : ViewModelBase
             KeyboardActivityFeed.Insert(0, entry);
             TrimActivityFeed(KeyboardActivityFeed, MaxCategoryActivityEntries);
         }
+    }
+
+    private void AppendDashboardActivity(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        var entry = $"{DateTime.Now:HH:mm:ss}  {message}";
+        DashboardActivityFeed.Insert(0, entry);
+        TrimActivityFeed(DashboardActivityFeed, MaxDashboardActivityEntries);
     }
 
     private static void TrimActivityFeed(ObservableCollection<string> feed, int maxEntries)

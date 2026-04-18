@@ -25,6 +25,18 @@ public sealed class KeyboardHookService : IKeyboardHookService
 
     private const uint XButton1 = 0x0001;
     private const uint XButton2 = 0x0002;
+    private const int CachedVirtualKeyCount = 0x100;
+
+    private static readonly GlobalKeyPressedEventArgs[] CachedKeyEventArgs =
+        Enumerable.Range(0, CachedVirtualKeyCount)
+            .Select(value => new GlobalKeyPressedEventArgs(value))
+            .ToArray();
+
+    private static readonly GlobalMouseButtonEventArgs MouseLeftEventArgs = new(InputBindingCode.MouseLeft);
+    private static readonly GlobalMouseButtonEventArgs MouseRightEventArgs = new(InputBindingCode.MouseRight);
+    private static readonly GlobalMouseButtonEventArgs MouseMiddleEventArgs = new(InputBindingCode.MouseMiddle);
+    private static readonly GlobalMouseButtonEventArgs MouseX1EventArgs = new(InputBindingCode.MouseX1);
+    private static readonly GlobalMouseButtonEventArgs MouseX2EventArgs = new(InputBindingCode.MouseX2);
 
     private readonly object _sync = new();
     private HookProc? _keyboardHookProc;
@@ -130,24 +142,31 @@ public sealed class KeyboardHookService : IKeyboardHookService
 
             if (wParam == (IntPtr)WmKeyDown || wParam == (IntPtr)WmSysKeyDown)
             {
+                EventHandler<GlobalKeyPressedEventArgs>? handler = null;
+
                 lock (_sync)
                 {
-                    if (!_downKeys.Contains(vk))
+                    if (_downKeys.Add(vk))
                     {
-                        _downKeys.Add(vk);
-                        KeyDown?.Invoke(this, new GlobalKeyPressedEventArgs(vk));
+                        handler = KeyDown;
                     }
                 }
+
+                handler?.Invoke(this, GetKeyEventArgs(vk));
             }
             else if (wParam == (IntPtr)WmKeyUp || wParam == (IntPtr)WmSysKeyUp)
             {
+                EventHandler<GlobalKeyPressedEventArgs>? handler = null;
+
                 lock (_sync)
                 {
                     if (_downKeys.Remove(vk))
                     {
-                        KeyUp?.Invoke(this, new GlobalKeyPressedEventArgs(vk));
+                        handler = KeyUp;
                     }
                 }
+
+                handler?.Invoke(this, GetKeyEventArgs(vk));
             }
         }
 
@@ -162,23 +181,27 @@ public sealed class KeyboardHookService : IKeyboardHookService
 
             if (TryTranslateMouseMessage((int)wParam, hookData.MouseData, out var inputCode, out var isDown))
             {
+                EventHandler<GlobalMouseButtonEventArgs>? handler = null;
+
                 lock (_sync)
                 {
                     if (isDown)
                     {
                         if (_downMouseButtons.Add(inputCode))
                         {
-                            MouseDown?.Invoke(this, new GlobalMouseButtonEventArgs(inputCode));
+                            handler = MouseDown;
                         }
                     }
                     else
                     {
                         if (_downMouseButtons.Remove(inputCode))
                         {
-                            MouseUp?.Invoke(this, new GlobalMouseButtonEventArgs(inputCode));
+                            handler = MouseUp;
                         }
                     }
                 }
+
+                handler?.Invoke(this, GetMouseEventArgs(inputCode));
             }
         }
 
@@ -248,6 +271,26 @@ public sealed class KeyboardHookService : IKeyboardHookService
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+    }
+
+    private static GlobalKeyPressedEventArgs GetKeyEventArgs(int virtualKey)
+    {
+        return virtualKey >= 0 && virtualKey < CachedKeyEventArgs.Length
+            ? CachedKeyEventArgs[virtualKey]
+            : new GlobalKeyPressedEventArgs(virtualKey);
+    }
+
+    private static GlobalMouseButtonEventArgs GetMouseEventArgs(int inputCode)
+    {
+        return inputCode switch
+        {
+            InputBindingCode.MouseLeft => MouseLeftEventArgs,
+            InputBindingCode.MouseRight => MouseRightEventArgs,
+            InputBindingCode.MouseMiddle => MouseMiddleEventArgs,
+            InputBindingCode.MouseX1 => MouseX1EventArgs,
+            InputBindingCode.MouseX2 => MouseX2EventArgs,
+            _ => new GlobalMouseButtonEventArgs(inputCode)
+        };
     }
 
     private delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
