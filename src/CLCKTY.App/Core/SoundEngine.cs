@@ -30,7 +30,7 @@ public sealed class SoundEngine : ISoundEngine
         WaveFormat.CreateIeeeFloatWaveFormat(OutputSampleRate, OutputChannels);
 
     private readonly object _sync = new();
-    private readonly WaveOutEvent _outputDevice;
+    private WaveOutEvent _outputDevice;
     private readonly MixingSampleProvider _mixer;
     private readonly Dictionary<string, LoadedSoundProfile> _profiles =
         new(StringComparer.OrdinalIgnoreCase);
@@ -42,6 +42,7 @@ public sealed class SoundEngine : ISoundEngine
     private float _masterVolume = 0.75f;
     private string _activeKeyboardProfileId = string.Empty;
     private string _activeMouseProfileId = string.Empty;
+    private int _outputDeviceNumber = -1;
     private bool _disposed;
 
     public SoundEngine()
@@ -51,11 +52,7 @@ public sealed class SoundEngine : ISoundEngine
             ReadFully = true
         };
 
-        _outputDevice = new WaveOutEvent
-        {
-            DesiredLatency = 60,
-            NumberOfBuffers = 3
-        };
+        _outputDevice = CreateOutputDevice(_outputDeviceNumber);
 
         _outputDevice.Init(_mixer);
 
@@ -366,7 +363,7 @@ public sealed class SoundEngine : ISoundEngine
         }
     }
 
-    public void PlayForKey(int virtualKey)
+    public void PlayForKey(int virtualKey, float categoryVolume = 1f)
     {
         LoadedSoundProfile? profile;
         SoundClip? clip;
@@ -387,7 +384,7 @@ public sealed class SoundEngine : ISoundEngine
                 clip = profile.Clips[profile.DefaultClipId];
             }
 
-            volume = _masterVolume;
+            volume = Math.Clamp(_masterVolume * categoryVolume, 0f, 1f);
         }
 
         var provider = new VolumeSampleProvider(new CachedSoundSampleProvider(clip.Sound))
@@ -406,7 +403,7 @@ public sealed class SoundEngine : ISoundEngine
         }
     }
 
-    public void StartHoldForKey(int virtualKey)
+    public void StartHoldForKey(int virtualKey, float categoryVolume = 1f)
     {
         LoadedSoundProfile? profile;
         SoundClip? clipToPlay = null;
@@ -428,17 +425,15 @@ public sealed class SoundEngine : ISoundEngine
             }
 
             _heldKeys.Add(virtualKey);
+            var isOneShotCustomProfile = IsOneShotCustomProfile(profile);
 
-            SoundClip? mappedDownClip = null;
-            var hasMappedDownClip =
-                _keyMappings.TryGetValue((virtualKey, KeyEventTrigger.Down), out var downClipId)
-                && profile.Clips.TryGetValue(downClipId, out mappedDownClip);
+            var hasMappedDownClip = TryResolveMappedClip(virtualKey, KeyEventTrigger.Down, profile, out var mappedDownClip);
 
-            var hasMappedUpClip =
-                _keyMappings.TryGetValue((virtualKey, KeyEventTrigger.Up), out var upClipId)
-                && profile.Clips.ContainsKey(upClipId);
+            var hasMappedUpClip = !isOneShotCustomProfile
+                && TryResolveMappedClip(virtualKey, KeyEventTrigger.Up, profile, out _);
 
-            var hasProfileUpClip = profile.DefaultKeyUpClips.TryGetValue(virtualKey, out var profileUpClipId)
+            var hasProfileUpClip = !isOneShotCustomProfile
+                && profile.DefaultKeyUpClips.TryGetValue(virtualKey, out var profileUpClipId)
                 && profile.Clips.ContainsKey(profileUpClipId);
 
             if (hasMappedDownClip)
@@ -460,10 +455,10 @@ public sealed class SoundEngine : ISoundEngine
                     clipToPlay = profile.Clips[profile.DefaultClipId];
                 }
 
-                splitClipOnRelease = !hasMappedUpClip && !hasProfileUpClip;
+                splitClipOnRelease = !isOneShotCustomProfile && !hasMappedUpClip && !hasProfileUpClip;
             }
 
-            volume = _masterVolume;
+            volume = Math.Clamp(_masterVolume * categoryVolume, 0f, 1f);
         }
 
         if (clipToPlay is null)
@@ -524,11 +519,11 @@ public sealed class SoundEngine : ISoundEngine
         catch (Exception)
         {
             // fall back to playing whole clip on error
-            PlayForKey(virtualKey);
+            PlayForKey(virtualKey, categoryVolume);
         }
     }
 
-    public void ReleaseForKey(int virtualKey)
+    public void ReleaseForKey(int virtualKey, float categoryVolume = 1f)
     {
         SoundClip? mappedUpClip = null;
         CachedSound? second = null;
@@ -544,9 +539,16 @@ public sealed class SoundEngine : ISoundEngine
 
             var activeProfileId = isMouseInput ? _activeMouseProfileId : _activeKeyboardProfileId;
 
+            if (_profiles.TryGetValue(activeProfileId, out var oneShotProfile)
+                && IsOneShotCustomProfile(oneShotProfile))
+            {
+                _pendingSecondHalf.Remove(virtualKey);
+                return;
+            }
+
             if (_profiles.TryGetValue(activeProfileId, out var profile)
-                && _keyMappings.TryGetValue((virtualKey, KeyEventTrigger.Up), out var upClipId)
-                && profile.Clips.TryGetValue(upClipId, out var resolvedUpClip))
+                && TryResolveMappedClip(virtualKey, KeyEventTrigger.Up, profile, out var resolvedUpClip)
+                && resolvedUpClip is not null)
             {
                 mappedUpClip = resolvedUpClip;
             }
@@ -565,7 +567,7 @@ public sealed class SoundEngine : ISoundEngine
             }
 
             _pendingSecondHalf.Remove(virtualKey);
-            volume = _masterVolume;
+            volume = Math.Clamp(_masterVolume * categoryVolume, 0f, 1f);
         }
 
         try
@@ -615,19 +617,66 @@ public sealed class SoundEngine : ISoundEngine
         }
     }
 
+    private static bool IsOneShotCustomProfile(LoadedSoundProfile profile)
+    {
+        return profile.IsImported
+            && (string.Equals(profile.SourceLabel, "custom", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(profile.SourceLabel, "custome", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool TryResolveMappedClip(
+        int inputCode,
+        KeyEventTrigger trigger,
+        LoadedSoundProfile activeProfile,
+        out SoundClip? resolvedClip)
+    {
+        resolvedClip = null;
+
+        if (!_keyMappings.TryGetValue((inputCode, trigger), out var clipId)
+            || string.IsNullOrWhiteSpace(clipId))
+        {
+            return false;
+        }
+
+        if (activeProfile.Clips.TryGetValue(clipId, out var clipInActiveProfile))
+        {
+            resolvedClip = clipInActiveProfile;
+            return true;
+        }
+
+        foreach (var profile in _profiles.Values)
+        {
+            if (profile.Clips.TryGetValue(clipId, out var clipInAnyProfile))
+            {
+                resolvedClip = clipInAnyProfile;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public Task<string?> ImportSoundPackAsync(string folderPath, CancellationToken cancellationToken = default)
     {
-        return ImportSoundPackAsync(folderPath, false, cancellationToken);
+        return ImportSoundPackAsync(folderPath, false, ImportedCredit, cancellationToken);
     }
 
     public async Task<string?> ImportSoundPackAsync(string folderPath, bool isMouseProfile, CancellationToken cancellationToken = default)
+    {
+        return await ImportSoundPackAsync(folderPath, isMouseProfile, ImportedCredit, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<string?> ImportSoundPackAsync(string folderPath, bool isMouseProfile, string sourceLabel, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
         {
             return null;
         }
 
-        var imported = await Task.Run(() => LoadProfileFromFolder(folderPath, cancellationToken, isMouseProfile, true, ImportedCredit), cancellationToken)
+        var resolvedSourceLabel = string.IsNullOrWhiteSpace(sourceLabel) ? ImportedCredit : sourceLabel.Trim();
+
+        var imported = await Task.Run(() => LoadProfileFromFolder(folderPath, cancellationToken, isMouseProfile, true, resolvedSourceLabel), cancellationToken)
             .ConfigureAwait(false);
 
         if (imported is null)
@@ -642,7 +691,7 @@ public sealed class SoundEngine : ISoundEngine
             foreach (var candidate in configCandidates)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                imported = LoadProfileFromFolder(candidate, cancellationToken, isMouseProfile, true, ImportedCredit);
+                imported = LoadProfileFromFolder(candidate, cancellationToken, isMouseProfile, true, resolvedSourceLabel);
                 if (imported is not null)
                 {
                     break;
@@ -742,6 +791,65 @@ public sealed class SoundEngine : ISoundEngine
             _outputDevice.Stop();
             _outputDevice.Dispose();
             _disposed = true;
+        }
+    }
+
+    public IReadOnlyList<string> GetOutputDevices()
+    {
+        var devices = new List<string> { "System Default" };
+
+        for (var i = 0; i < WaveOut.DeviceCount; i++)
+        {
+            var capabilities = WaveOut.GetCapabilities(i);
+            devices.Add(capabilities.ProductName);
+        }
+
+        return devices;
+    }
+
+    public int GetOutputDeviceNumber()
+    {
+        lock (_sync)
+        {
+            return _outputDeviceNumber;
+        }
+    }
+
+    public bool SetOutputDeviceNumber(int deviceNumber)
+    {
+        lock (_sync)
+        {
+            ThrowIfDisposed();
+
+            if (deviceNumber < -1 || deviceNumber >= WaveOut.DeviceCount)
+            {
+                return false;
+            }
+
+            if (_outputDeviceNumber == deviceNumber)
+            {
+                return true;
+            }
+
+            var replacement = CreateOutputDevice(deviceNumber);
+
+            try
+            {
+                replacement.Init(_mixer);
+                replacement.Play();
+
+                _outputDevice.Stop();
+                _outputDevice.Dispose();
+
+                _outputDevice = replacement;
+                _outputDeviceNumber = deviceNumber;
+                return true;
+            }
+            catch
+            {
+                replacement.Dispose();
+                return false;
+            }
         }
     }
 
@@ -1059,6 +1167,43 @@ public sealed class SoundEngine : ISoundEngine
         };
     }
 
+    private static IReadOnlyDictionary<int, string> BuildRandomizedKeyMap(IReadOnlyList<string> clipIds, bool isMouseProfile)
+    {
+        if (clipIds.Count == 0)
+        {
+            return new Dictionary<int, string>();
+        }
+
+        var random = new Random();
+        var map = new Dictionary<int, string>();
+
+        if (isMouseProfile)
+        {
+            var mouseKeys = new[]
+            {
+                InputBindingCode.MouseLeft,
+                InputBindingCode.MouseRight,
+                InputBindingCode.MouseMiddle,
+                InputBindingCode.MouseX1,
+                InputBindingCode.MouseX2
+            };
+
+            foreach (var mouseKey in mouseKeys)
+            {
+                map[mouseKey] = clipIds[random.Next(clipIds.Count)];
+            }
+
+            return map;
+        }
+
+        for (var virtualKey = 0x08; virtualKey <= 0xFE; virtualKey++)
+        {
+            map[virtualKey] = clipIds[random.Next(clipIds.Count)];
+        }
+
+        return map;
+    }
+
     private static CachedSound CreateSynthClick(
         double baseFrequency,
         int durationMs,
@@ -1111,10 +1256,20 @@ public sealed class SoundEngine : ISoundEngine
             }
         }
 
-        var waveFiles = Directory.EnumerateFiles(folderPath, "*.wav", SearchOption.TopDirectoryOnly)
+        var audioFiles = Directory.EnumerateFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly)
+            .Where(path =>
+            {
+                var ext = Path.GetExtension(path);
+                return ext.Equals(".wav", StringComparison.OrdinalIgnoreCase)
+                    || ext.Equals(".mp3", StringComparison.OrdinalIgnoreCase)
+                    || ext.Equals(".ogg", StringComparison.OrdinalIgnoreCase)
+                    || ext.Equals(".flac", StringComparison.OrdinalIgnoreCase)
+                    || ext.Equals(".aac", StringComparison.OrdinalIgnoreCase)
+                    || ext.Equals(".m4a", StringComparison.OrdinalIgnoreCase);
+            })
             .ToList();
 
-        if (waveFiles.Count == 0)
+        if (audioFiles.Count == 0)
         {
             foreach (var candidateFolder in EnumerateCandidatePackFolders(folderPath, cancellationToken))
             {
@@ -1133,14 +1288,14 @@ public sealed class SoundEngine : ISoundEngine
 
         var clips = new Dictionary<string, SoundClip>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var waveFile in waveFiles)
+        foreach (var audioFile in audioFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var name = Path.GetFileNameWithoutExtension(waveFile);
+            var name = Path.GetFileNameWithoutExtension(audioFile);
             var clipId = NormalizeToken(name);
             var displayName = ToDisplayName(name);
-            var clipSound = LoadCachedSoundFromFile(waveFile);
+            var clipSound = LoadCachedSoundFromFile(audioFile);
 
             clips[clipId] = new SoundClip(clipId, displayName, clipSound, sourceLabel);
         }
@@ -1153,14 +1308,15 @@ public sealed class SoundEngine : ISoundEngine
         var defaultClipId = clips.ContainsKey("default") ? "default" : clips.Keys.First();
         var baseId = NormalizeToken(folderName);
         var profileId = CreateProfileId(baseId, isMouseProfile, isImported);
-        var profileDisplayName = isImported ? $"{packLabel} (Custom)" : packLabel;
+        var profileDisplayName = packLabel;
+        var randomizedKeyMap = BuildRandomizedKeyMap(clips.Keys.ToList(), isMouseProfile);
 
         return new LoadedSoundProfile(
             profileId,
             profileDisplayName,
             defaultClipId,
             clips,
-            new Dictionary<int, string>(),
+            randomizedKeyMap,
             new Dictionary<int, string>(),
             isImported,
             isMouseProfile,
@@ -2082,6 +2238,16 @@ public sealed class SoundEngine : ISoundEngine
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+    }
+
+    private static WaveOutEvent CreateOutputDevice(int deviceNumber)
+    {
+        return new WaveOutEvent
+        {
+            DeviceNumber = deviceNumber,
+            DesiredLatency = 60,
+            NumberOfBuffers = 3
+        };
     }
 
     [DllImport("user32.dll")]

@@ -43,14 +43,22 @@ public interface ISoundEngine : IDisposable
 
     string GetPlaybackClipDisplayName(int inputCode, KeyEventTrigger trigger = KeyEventTrigger.Down);
 
-    void PlayForKey(int virtualKey);
-    void StartHoldForKey(int virtualKey);
-    void ReleaseForKey(int virtualKey);
+    IReadOnlyList<string> GetOutputDevices();
+
+    int GetOutputDeviceNumber();
+
+    bool SetOutputDeviceNumber(int deviceNumber);
+
+    void PlayForKey(int virtualKey, float categoryVolume = 1f);
+    void StartHoldForKey(int virtualKey, float categoryVolume = 1f);
+    void ReleaseForKey(int virtualKey, float categoryVolume = 1f);
 
     // Legacy alias that imports to keyboard profile category.
     Task<string?> ImportSoundPackAsync(string folderPath, CancellationToken cancellationToken = default);
 
     Task<string?> ImportSoundPackAsync(string folderPath, bool isMouseProfile, CancellationToken cancellationToken = default);
+
+    Task<string?> ImportSoundPackAsync(string folderPath, bool isMouseProfile, string sourceLabel, CancellationToken cancellationToken = default);
 
     Task<string?> ImportAudioClipAsync(string filePath, CancellationToken cancellationToken = default);
 

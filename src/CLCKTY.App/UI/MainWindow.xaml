@@ -35,6 +35,7 @@
         <FontFamily x:Key="SidebarFontFamily">/CLCKTY.App;component/Assets/Fonts/#Rajdhani</FontFamily>
         <FontFamily x:Key="DashboardFontFamily">/CLCKTY.App;component/Assets/Fonts/#Rajdhani</FontFamily>
         <FontFamily x:Key="DashboardHeadingFontFamily">/CLCKTY.App;component/Assets/Fonts/#Rajdhani</FontFamily>
+        <FontFamily x:Key="GameDisplayFontFamily">/CLCKTY.App;component/Assets/Fonts/#Anton</FontFamily>
 
         <Style x:Key="ModernCardStyle" TargetType="Border">
             <Setter Property="BorderThickness" Value="0" />
@@ -279,6 +280,78 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="DangerRoot" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="StatsTitleButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="#AEEBD0" />
+            <Setter Property="Background" Value="#122B22" />
+            <Setter Property="BorderBrush" Value="#2A6A53" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="FontFamily" Value="{StaticResource DashboardFontFamily}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="StatsTitleRoot"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="StatsTitleRoot" Property="Background" Value="#1A4031" />
+                                <Setter TargetName="StatsTitleRoot" Property="BorderBrush" Value="#28B074" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="StatsTitleRoot" Property="Opacity" Value="0.86" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="StatsCompactButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="#CFF8E6" />
+            <Setter Property="Background" Value="#123428" />
+            <Setter Property="BorderBrush" Value="#2E7E62" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="CompactRoot"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CompactRoot" Property="Background" Value="#1B4A39" />
+                                <Setter TargetName="CompactRoot" Property="BorderBrush" Value="#31BC82" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="CompactRoot" Property="Opacity" Value="0.88" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="CompactRoot" Property="Opacity" Value="0.45" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -647,6 +720,12 @@
                                 <DataTrigger Binding="{Binding IsImported}" Value="True">
                                     <Setter Property="Visibility" Value="Visible" />
                                 </DataTrigger>
+                                <DataTrigger Binding="{Binding SourceLabel}" Value="custom">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SourceLabel}" Value="custome">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Button.Style>
@@ -725,6 +804,12 @@
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsImported}" Value="True">
                                     <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SourceLabel}" Value="custom">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SourceLabel}" Value="custome">
+                                    <Setter Property="Visibility" Value="Collapsed" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -936,7 +1021,7 @@
                                            Foreground="{StaticResource AccentBrush}"
                                            FontFamily="/CLCKTY.App;component/Assets/Fonts/#Splatink PERSONAL USE"
                                            FontSize="22" />
-                                <TextBlock Text="Your custom virtual keyboard sound"
+                                <TextBlock Text="Customize, Click, Level Up!"
                                            Foreground="{StaticResource TextSecondaryBrush}"
                                            FontSize="10" />
                             </StackPanel>
@@ -1120,7 +1205,7 @@
 
                     <StackPanel Grid.Row="2"
                                 Margin="10,0,10,14">
-                           <TextBlock Text="CLCKTY v1.2.0"
+                           <TextBlock Text="CLCKTY v2.1.0"
                                    Foreground="#7FA997"
                                    FontSize="10"
                                    HorizontalAlignment="Right" />
@@ -1250,10 +1335,13 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="12" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="12" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
 
                                     <!-- Mode Preset Bar -->
-                                    <Border Background="#111E19"
+                                        <Border Grid.Row="0"
+                                            Background="#111E19"
                                             CornerRadius="8"
                                             Padding="10,8"
                                             Margin="0,0,0,10">
@@ -1331,7 +1419,7 @@
                                         </Grid>
                                     </Border>
 
-                                    <StackPanel>
+                                    <StackPanel Grid.Row="2">
                                         <TextBlock Text="Current Configuration"
                                                    FontFamily="{StaticResource DashboardHeadingFontFamily}"
                                                    FontSize="10"
@@ -1353,7 +1441,7 @@
                                                    FontSize="11" />
                                     </StackPanel>
 
-                                    <StackPanel Grid.Row="2">
+                                    <StackPanel Grid.Row="4">
                                         <TextBlock Text="Keyboard Profile"
                                                    FontSize="12"
                                                    Foreground="{StaticResource TextSecondaryBrush}"
@@ -1423,7 +1511,7 @@
                                         </Grid>
                                     </StackPanel>
 
-                                    <StackPanel Grid.Row="4">
+                                    <StackPanel Grid.Row="6">
                                         <Grid Margin="0,0,0,4">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
@@ -1443,6 +1531,50 @@
                                         <Slider Minimum="0"
                                                 Maximum="100"
                                                 Value="{Binding Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                VerticalAlignment="Center"
+                                                Style="{StaticResource VolumeSliderStyle}" />
+
+                                        <Grid Margin="0,12,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Text="Keyboard Gain"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="12" />
+                                            <TextBlock Grid.Column="1"
+                                                       Foreground="{StaticResource AccentBrush}"
+                                                       FontWeight="Bold"
+                                                       FontSize="13"
+                                                       Text="{Binding KeyboardVolume, StringFormat={}{0:0}%}" />
+                                        </Grid>
+
+                                        <Slider Minimum="0"
+                                                Maximum="100"
+                                                Value="{Binding KeyboardVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                VerticalAlignment="Center"
+                                                Style="{StaticResource VolumeSliderStyle}" />
+
+                                        <Grid Margin="0,10,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Text="Mouse Gain"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="12" />
+                                            <TextBlock Grid.Column="1"
+                                                       Foreground="{StaticResource AccentBrush}"
+                                                       FontWeight="Bold"
+                                                       FontSize="13"
+                                                       Text="{Binding MouseVolume, StringFormat={}{0:0}%}" />
+                                        </Grid>
+
+                                        <Slider Minimum="0"
+                                                Maximum="100"
+                                                Value="{Binding MouseVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                 VerticalAlignment="Center"
                                                 Style="{StaticResource VolumeSliderStyle}" />
                                     </StackPanel>
@@ -2000,6 +2132,719 @@
                                 </StackPanel>
                             </Border>
 
+                        </StackPanel>
+
+                        <StackPanel x:Name="StatsSectionPanel"
+                                    TextElement.FontFamily="{StaticResource DashboardFontFamily}"
+                                    Visibility="Collapsed"
+                                    MinHeight="470">
+                            <Border Style="{StaticResource ModernCardStyle}"
+                                    Background="#131D19"
+                                    Padding="14"
+                                    Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel>
+                                        <TextBlock Text="CLCKTY Stats"
+                                                   FontFamily="/CLCKTY.App;component/Assets/Fonts/#Splatink PERSONAL USE"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontSize="30" />
+                                        <TextBlock Text="Progression, ranks, and achievements"
+                                                   Foreground="#8DC4AE"
+                                                   FontSize="12"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+
+                                    <Border Grid.Column="1"
+                                            Background="#1A322A"
+                                            BorderBrush="#2A6A53"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="10,6"
+                                            VerticalAlignment="Center">
+                                        <StackPanel>
+                                            <TextBlock Text="Current Rank"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="10"
+                                                       HorizontalAlignment="Center" />
+                                            <TextBlock x:Name="StatsCurrentRankText"
+                                                       Text="F"
+                                                       Foreground="{StaticResource AccentBrush}"
+                                                       FontFamily="{StaticResource GameDisplayFontFamily}"
+                                                       FontSize="24"
+                                                       HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.02*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="1.35*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Grid Grid.Column="0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="10" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+
+                                    <Border Style="{StaticResource ModernCardStyle}"
+                                            Background="#111917"
+                                            Padding="10">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="8" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Text="Level &amp; Rank"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="14" />
+
+                                            <Grid Grid.Row="2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="10" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel>
+                                                    <TextBlock Text="Level"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               FontSize="10" />
+                                                    <TextBlock x:Name="StatsLevelText"
+                                                               Text="1"
+                                                               Foreground="{StaticResource AccentBrush}"
+                                                               FontFamily="{StaticResource GameDisplayFontFamily}"
+                                                               FontSize="38" />
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="2"
+                                                            VerticalAlignment="Center">
+                                                    <TextBlock x:Name="StatsXpText"
+                                                               Text="0 / 100 XP"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               FontSize="11" />
+
+                                                    <Grid x:Name="StatsXpProgressTrack"
+                                                          Height="9"
+                                                          Margin="0,6,0,0">
+                                                        <Border Background="#1B3A2E"
+                                                                BorderBrush="#2A6A53"
+                                                                BorderThickness="1"
+                                                                CornerRadius="5" />
+                                                        <Border x:Name="StatsXpProgressFill"
+                                                                Background="{StaticResource AccentBrush}"
+                                                                CornerRadius="5"
+                                                                HorizontalAlignment="Left"
+                                                                Width="0" />
+                                                    </Grid>
+
+                                                    <TextBlock x:Name="StatsPromotionHintText"
+                                                               Text="Hardcore rank ladder active. Keep grinding to rank up."
+                                                               Foreground="#8DC4AE"
+                                                               FontSize="10"
+                                                               TextWrapping="Wrap"
+                                                               Margin="0,6,0,0" />
+
+                                                    <TextBlock x:Name="StatsNextRankText"
+                                                               Text="Next Rank: E"
+                                                               Foreground="#7DD2FF"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="12"
+                                                               Margin="0,3,0,0" />
+
+                                                    <TextBlock Text="Main Title"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               FontSize="10"
+                                                               Margin="0,6,0,0" />
+                                                    <TextBlock x:Name="StatsMainTitleText"
+                                                               Text="Newbie Clacker"
+                                                               Foreground="{StaticResource AccentBrush}"
+                                                               FontWeight="Bold"
+                                                               FontSize="13" />
+                                                    <TextBlock x:Name="StatsSecondaryTitleText"
+                                                               Text=""
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               FontSize="10"
+                                                               Margin="0,1,0,0" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Grid.Row="2"
+                                            Style="{StaticResource ModernCardStyle}"
+                                            Background="#151E1B"
+                                            Padding="10">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="8" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Text="Click Stats"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="14" />
+
+                                            <UniformGrid Grid.Row="2" Columns="2">
+                                                <StackPanel Margin="0,0,6,6">
+                                                    <TextBlock Text="Total Clackity" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" />
+                                                    <TextBlock x:Name="StatsTotalClackityText" Text="0" Foreground="{StaticResource AccentBrush}" FontFamily="{StaticResource GameDisplayFontFamily}" FontSize="27" />
+                                                </StackPanel>
+                                                <StackPanel Margin="6,0,0,6">
+                                                    <TextBlock Text="Today" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" />
+                                                    <TextBlock x:Name="StatsTodayText" Text="0" Foreground="{StaticResource TextPrimaryBrush}" FontFamily="{StaticResource GameDisplayFontFamily}" FontSize="27" />
+                                                </StackPanel>
+                                                <StackPanel Margin="0,0,6,6">
+                                                    <TextBlock Text="This Week" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" />
+                                                    <TextBlock x:Name="StatsWeekText" Text="0" Foreground="#7DD2FF" FontFamily="{StaticResource GameDisplayFontFamily}" FontSize="21" />
+                                                </StackPanel>
+                                                <StackPanel Margin="6,0,0,6">
+                                                    <TextBlock Text="This Month" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" />
+                                                    <TextBlock x:Name="StatsMonthText" Text="0" Foreground="#F9C67B" FontFamily="{StaticResource GameDisplayFontFamily}" FontSize="21" />
+                                                </StackPanel>
+                                                <StackPanel Margin="0,0,6,0">
+                                                    <TextBlock Text="Keyboard Clicks" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" />
+                                                    <TextBlock x:Name="StatsKeyboardClicksText" Text="0" Foreground="#4FC3F7" FontFamily="{StaticResource GameDisplayFontFamily}" FontSize="19" />
+                                                </StackPanel>
+                                                <StackPanel Margin="6,0,0,0">
+                                                    <TextBlock Text="Mouse Clicks" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" />
+                                                    <TextBlock x:Name="StatsMouseClicksText" Text="0" Foreground="#FF7043" FontFamily="{StaticResource GameDisplayFontFamily}" FontSize="19" />
+                                                </StackPanel>
+                                            </UniformGrid>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+
+                                <Border Grid.Column="2"
+                                        Style="{StaticResource ModernCardStyle}"
+                                        Background="#111917"
+                                        Padding="10">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="6" />
+                                            <RowDefinition Height="*" />
+                                            <RowDefinition Height="8" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Text="Achievements"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="14" />
+
+                                            <StackPanel Grid.Column="1"
+                                                        Orientation="Horizontal">
+                                                <Button x:Name="StatsAchievementPrevButton"
+                                                        Content="◀"
+                                                        Width="24"
+                                                        Height="22"
+                                                        Style="{StaticResource StatsCompactButtonStyle}"
+                                                        Click="StatsAchievementPrevButton_Click" />
+                                                <Button x:Name="StatsAchievementNextButton"
+                                                        Content="▶"
+                                                        Width="24"
+                                                        Height="22"
+                                                        Margin="6,0,0,0"
+                                                        Style="{StaticResource StatsCompactButtonStyle}"
+                                                        Click="StatsAchievementNextButton_Click" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Border Grid.Row="2"
+                                                Background="#0F1714"
+                                                BorderBrush="#214B3C"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="6">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="4" />
+                                                    <RowDefinition Height="*" />
+                                                </Grid.RowDefinitions>
+
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="56" />
+                                                        <ColumnDefinition Width="2.2*" />
+                                                        <ColumnDefinition Width="2.4*" />
+                                                        <ColumnDefinition Width="48" />
+                                                        <ColumnDefinition Width="80" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="State" Foreground="#8DC4AE" FontSize="10" FontWeight="SemiBold" />
+                                                    <TextBlock Grid.Column="1" Text="Achievement" Foreground="#8DC4AE" FontSize="10" FontWeight="SemiBold" />
+                                                    <TextBlock Grid.Column="2" Text="Requirement" Foreground="#8DC4AE" FontSize="10" FontWeight="SemiBold" />
+                                                    <TextBlock Grid.Column="3" Text="Rank" Foreground="#8DC4AE" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                                    <TextBlock Grid.Column="4" Text="Action" Foreground="#8DC4AE" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                                </Grid>
+
+                                                <StackPanel Grid.Row="2" x:Name="StatsAchievementsPanel" />
+                                            </Grid>
+                                        </Border>
+
+                                        <Grid Grid.Row="4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="StatsAchievementsPageText"
+                                                       Text="Page F (1/10)"
+                                                       Foreground="#7DD2FF"
+                                                       FontSize="11" />
+                                            <TextBlock x:Name="StatsAchievementsCountText"
+                                                       Grid.Column="1"
+                                                       Text="0 / 0"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="11" />
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel x:Name="InfoSectionPanel"
+                                    TextElement.FontFamily="{StaticResource DashboardFontFamily}"
+                                    Visibility="Collapsed">
+                            <Border Background="#151E1B"
+                                Style="{StaticResource ModernCardStyle}"
+                                Padding="14">
+                                <StackPanel>
+                                    <TextBlock Text="Information"
+                                       FontFamily="/CLCKTY.App;component/Assets/Fonts/#Splatink PERSONAL USE"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                       FontSize="22" />
+                                    <TextBlock Text="About CLCKTY"
+                                       Margin="0,2,0,10"
+                                               Foreground="{StaticResource TextSecondaryBrush}" />
+
+                                    <TextBlock Text="CLCKTY v2.1.0"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               FontSize="20"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="Build 04182614PMS"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               Margin="0,2,0,0" />
+
+                                    <TextBlock Margin="0,10,0,0"
+                                               TextWrapping="Wrap"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               Text="CLCKTY transforms your typing into sound&#8212;turning every keystroke into a customizable audio experience. Designed to be lightweight, responsive, and always running in the background." />
+
+                                    <TextBlock Margin="0,10,0,0"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               Text="Developed by Jerwin Cruz" />
+                                    <TextBlock Margin="0,4,0,0"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Text="Inspired by Adrian Angelo Abelarde (Keeby)"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Text="Hai Nguyen (Mechvibes)"
+                                               TextWrapping="Wrap" />
+
+                                    <Button Margin="0,12,0,0"
+                                            HorizontalAlignment="Left"
+                                            Height="38"
+                                            MinWidth="210"
+                                            Padding="16,0"
+                                            Style="{StaticResource GlowButtonStyle}"
+                                            Click="OpenMechvibesGithubButton_Click">
+                                        <TextBlock Text="Open MechvibesDX GitHub"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold" />
+                                    </Button>
+
+                                    <TextBlock Margin="0,10,0,0"
+                                               Text="Features:"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Margin="0,4,0,0"
+                                               Text="&#x2022; Global keyboard and mouse sound playback with low latency"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Text="&#x2022; Separate keyboard and mouse profiles with independent routing"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Text="&#x2022; Import Mechvibes-style packs and map per-key or per-button sounds"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Text="&#x2022; Custom audio upload for specific key and mouse mappings"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Text="&#x2022; Live trigger preview, profile switching, and activity monitoring"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Text="&#x2022; Tray controls, startup option, and global toggle hotkeys"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Text="&#x2022; Hardcore leveling ladder with rank multipliers and V-cap spike gates"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Text="&#x2022; Ranked achievement pages from F to EX with compact table navigation"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Text="&#x2022; Equip and unequip titles directly from achievement entries"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Text="&#x2022; Styled confirmation dialogs for delete actions across package/profile flows"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Text="&#x2022; Output-device switching, live preview playback, and duplicate-save protection"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+
+                                    <TextBlock Margin="0,10,0,0"
+                                               Text="Privacy:"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Margin="0,4,0,0"
+                                               TextWrapping="Wrap"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Text="CLCKTY does not record, store, or transmit any keystrokes. All input is used solely to trigger sound playback." />
+
+                                    <TextBlock Margin="0,10,0,0"
+                                               Text="Built with C# (.NET) and WPF"
+                                               Foreground="{StaticResource TextPrimaryBrush}" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Text="Audio powered by NAudio"
+                                               Foreground="{StaticResource TextPrimaryBrush}" />
+
+                                    <TextBlock Margin="0,12,0,0"
+                                               Text="&#8220;Not just typing&#8230; performing.&#8221;"
+                                               FontStyle="Italic"
+                                               Foreground="{StaticResource AccentBrush}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel x:Name="SettingsSectionPanel"
+                                    TextElement.FontFamily="{StaticResource DashboardFontFamily}"
+                                    Visibility="Collapsed">
+                            <Border Background="#151E1B"
+                                    Style="{StaticResource ModernCardStyle}"
+                                    Padding="16">
+                                <StackPanel>
+                                    <TextBlock Text="Settings"
+                                               FontFamily="/CLCKTY.App;component/Assets/Fonts/#Splatink PERSONAL USE"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               FontSize="22" />
+                                    <TextBlock Text="Startup, sound, and audio device controls"
+                                               Foreground="#8DC4AE"
+                                               FontSize="11"
+                                               Margin="0,4,0,10" />
+
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Start With Windows" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                        <ToggleButton Grid.Column="1" Style="{StaticResource SwitchStyle}" IsChecked="{Binding StartWithWindows, Mode=TwoWay}" />
+                                    </Grid>
+
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Master Engine" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                        <ToggleButton Grid.Column="1" Style="{StaticResource SwitchStyle}" IsChecked="{Binding IsEnabled, Mode=TwoWay}" />
+                                    </Grid>
+
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Keyboard Sounds" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                        <ToggleButton Grid.Column="1" Style="{StaticResource SwitchStyle}" IsChecked="{Binding IsKeyboardSoundEnabled, Mode=TwoWay}" />
+                                    </Grid>
+
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Mouse Sounds" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                        <ToggleButton Grid.Column="1" Style="{StaticResource SwitchStyle}" IsChecked="{Binding IsMouseSoundEnabled, Mode=TwoWay}" />
+                                    </Grid>
+
+                                    <TextBlock Text="Output Device" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                    <ComboBox x:Name="OutputDeviceComboBox"
+                                              DisplayMemberPath="Name"
+                                              SelectionChanged="OutputDeviceComboBox_SelectionChanged"
+                                              Margin="0,0,0,10" />
+
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <TextBlock Text="Current" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" HorizontalAlignment="Center" />
+                                            <TextBlock x:Name="CurrentLatencyText" Text="60 ms" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                            <TextBlock Text="Buffers" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" HorizontalAlignment="Center" />
+                                            <TextBlock x:Name="BufferCountText" Text="3" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                            <TextBlock Text="Status" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" HorizontalAlignment="Center" />
+                                            <TextBlock x:Name="LatencyStatusText" Text="Good" Foreground="#8BC34A" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0"
+                                                Style="{StaticResource GlowButtonStyle}"
+                                                Height="38"
+                                                Click="AnalyzeLatencyButton_Click">
+                                            <TextBlock Text="Analyze"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold" />
+                                        </Button>
+                                        <Button Grid.Column="2"
+                                                Style="{StaticResource GlowButtonStyle}"
+                                                Height="38"
+                                                Click="OptimizeLatencyButton_Click">
+                                            <TextBlock Text="Optimize"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold" />
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel x:Name="RecordItSectionPanel"
+                                    TextElement.FontFamily="{StaticResource DashboardFontFamily}"
+                                    Visibility="Collapsed">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="12" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Row="0"
+                                        Grid.Column="0"
+                                        Background="#151E1B"
+                                        Style="{StaticResource ModernCardStyle}"
+                                        Padding="14">
+                                    <StackPanel>
+                                        <TextBlock Text="Record It"
+                                                   FontFamily="{StaticResource DashboardHeadingFontFamily}"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="18" />
+                                        <TextBlock Text="Create your own custom sound packs"
+                                                   Foreground="#8DC4AE"
+                                                   FontSize="11"
+                                                   Margin="0,4,0,10" />
+
+                                        <TextBlock Text="Pack Name" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" />
+                                        <Grid Margin="0,4,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="PackNameTextBox"
+                                                     Text="My Custom Pack"
+                                                     Margin="0,0,8,0"
+                                                     MinHeight="34"
+                                                     Padding="8,6"
+                                                     Background="#10221B"
+                                                     BorderBrush="#2B6D56"
+                                                     BorderThickness="1"
+                                                     Foreground="#E8FFF5"
+                                                     CaretBrush="#22D883" />
+                                            <Button Grid.Column="1"
+                                                    Style="{StaticResource GlowButtonStyle}"
+                                                    MinWidth="96"
+                                                    Height="40"
+                                                    Click="CreatePackButton_Click">
+                                                <TextBlock Text="Create"
+                                                           FontSize="14"
+                                                           FontWeight="SemiBold" />
+                                            </Button>
+                                        </Grid>
+
+                                        <Button Style="{StaticResource GlowButtonStyle}"
+                                                Click="BulkUploadButton_Click"
+                                                Height="38"
+                                                Padding="14,0"
+                                                Margin="0,0,0,10">
+                                            <TextBlock Text="Choose Files to Upload"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold" />
+                                        </Button>
+
+                                        <Button x:Name="SavePackageButton"
+                                            Style="{StaticResource GlowButtonStyle}"
+                                                Click="SavePackageButton_Click"
+                                                Height="38"
+                                                Padding="14,0"
+                                                Margin="0,0,0,10">
+                                            <TextBlock Text="Save Package"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold" />
+                                        </Button>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Button x:Name="RecordButton"
+                                                    Width="56"
+                                                    Height="56"
+                                                    Margin="0,0,14,0"
+                                                    Background="#5C1A18"
+                                                    BorderBrush="#D32F2F"
+                                                    BorderThickness="2"
+                                                    Foreground="White"
+                                                    Style="{StaticResource GlowButtonStyle}"
+                                                    Click="RecordButton_Click">
+                                                <TextBlock x:Name="RecordButtonIcon"
+                                                           Text="&#xE720;"
+                                                           FontFamily="Segoe MDL2 Assets"
+                                                           FontSize="20"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" />
+                                            </Button>
+
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock x:Name="RecordingStatusText"
+                                                           Text="Ready to record"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="13" />
+                                                <TextBlock x:Name="RecordingTimerText"
+                                                           Text="0.0 / 2.5 sec"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           FontSize="11"
+                                                           Margin="0,3,0,0" />
+                                                <Grid Margin="0,6,0,0" Height="6">
+                                                    <Border CornerRadius="3" Background="#132A22" />
+                                                    <Border x:Name="RecordingProgressFill"
+                                                            CornerRadius="3"
+                                                            Background="#D32F2F"
+                                                            HorizontalAlignment="Left"
+                                                            Width="0" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <TextBlock x:Name="PackStatusText"
+                                                   Margin="0,10,0,0"
+                                                   Foreground="{StaticResource AccentBrush}"
+                                                   FontSize="11"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="0"
+                                        Grid.Column="2"
+                                        Background="#111917"
+                                        Style="{StaticResource ModernCardStyle}"
+                                        Padding="12">
+                                    <StackPanel>
+                                        <TextBlock Text="Sounds in Pack"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="14" />
+                                        <TextBlock x:Name="PackSoundCountText"
+                                                   Text="0 sounds"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   FontSize="11"
+                                                   Margin="0,2,0,8" />
+                                        <ScrollViewer MaxHeight="320"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel x:Name="PackSoundsPanel">
+                                                <TextBlock Text="No sounds added yet."
+                                                           Foreground="#5B8A76"
+                                                           FontStyle="Italic"
+                                                           FontSize="11" />
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="2"
+                                        Grid.Column="0"
+                                        Grid.ColumnSpan="3"
+                                        Background="#111917"
+                                        BorderBrush="#2A6A53"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="10">
+                                    <StackPanel>
+                                        <TextBlock Text="Packages Created"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="13" />
+                                        <TextBlock x:Name="CreatedPackagesCountText"
+                                                   Text="0 package(s)"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   FontSize="10"
+                                                   Margin="0,2,0,8" />
+                                        <ScrollViewer MaxHeight="160"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel x:Name="CreatedPackagesPanel">
+                                                <TextBlock Text="No packages created yet."
+                                                           Foreground="#5B8A76"
+                                                           FontStyle="Italic"
+                                                           FontSize="11" />
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

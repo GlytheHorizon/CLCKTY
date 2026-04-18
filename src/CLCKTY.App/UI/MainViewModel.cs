@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Windows;
 using System.Windows.Input;
 using CLCKTY.App.Core;
 using CLCKTY.App.Services;
@@ -30,6 +31,8 @@ public sealed class MainViewModel : ViewModelBase
     private bool _isMouseSoundEnabled = true;
     private bool _startWithWindows;
     private double _volume;
+    private double _keyboardVolume = 100d;
+    private double _mouseVolume = 100d;
     private string _statusText = "Ready";
     private string _lastTriggeredPreview = "Press any key or click a mouse button to test.";
     private bool _isImportingPack;
@@ -66,7 +69,12 @@ public sealed class MainViewModel : ViewModelBase
         ImportMappingAudioCommand = new RelayCommand(parameter => _ = ImportMappingAudioAsync(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel && !IsImportingClip);
         RemoveRowSoundChoiceCommand = new RelayCommand(parameter => RemoveRowSoundChoice(parameter as KeyMappingRowViewModel), parameter => parameter is KeyMappingRowViewModel);
         RemoveClipOptionCommand = new RelayCommand(parameter => RemoveClipOption(parameter as KeyMappingOption), parameter => parameter is KeyMappingOption option && option.CanRemove);
-        RemoveImportedProfileCommand = new RelayCommand(parameter => RemoveImportedProfile(parameter as SoundProfileDescriptor), parameter => parameter is SoundProfileDescriptor profile && profile.IsImported);
+        RemoveImportedProfileCommand = new RelayCommand(
+            parameter => RemoveImportedProfile(parameter as SoundProfileDescriptor),
+            parameter => parameter is SoundProfileDescriptor profile
+                && profile.IsImported
+                && !string.Equals(profile.SourceLabel, "custom", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(profile.SourceLabel, "custome", StringComparison.OrdinalIgnoreCase));
         ClearMappingsCommand = new RelayCommand(_ => ClearMappings());
 
         RemoveLegacyUpMappings();
@@ -237,6 +245,32 @@ public sealed class MainViewModel : ViewModelBase
             }
 
             AppendActivity(value);
+        }
+    }
+
+    public double KeyboardVolume
+    {
+        get => _keyboardVolume;
+        set
+        {
+            var clamped = Math.Clamp(value, 0d, 100d);
+            if (!SetProperty(ref _keyboardVolume, clamped))
+            {
+                return;
+            }
+        }
+    }
+
+    public double MouseVolume
+    {
+        get => _mouseVolume;
+        set
+        {
+            var clamped = Math.Clamp(value, 0d, 100d);
+            if (!SetProperty(ref _mouseVolume, clamped))
+            {
+                return;
+            }
         }
     }
 
@@ -441,6 +475,12 @@ public sealed class MainViewModel : ViewModelBase
         return true;
     }
 
+    public void RefreshProfiles()
+    {
+        LoadProfiles(_soundEngine.GetActiveProfileId(false), _soundEngine.GetActiveProfileId(true));
+        UpdateMappingOptions();
+    }
+
     public void ReportInputTriggered(int inputCode, KeyEventTrigger trigger = KeyEventTrigger.Down)
     {
         var isMouseInput = InputBindingCode.IsMouseCode(inputCode);
@@ -590,14 +630,22 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        var confirm = Forms.MessageBox.Show(
-            $"Delete imported pack '{profile.DisplayName}'?",
-            "Delete Imported Pack",
-            Forms.MessageBoxButtons.YesNo,
-            Forms.MessageBoxIcon.Warning,
-            Forms.MessageBoxDefaultButton.Button2);
+        if (string.Equals(profile.SourceLabel, "custom", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(profile.SourceLabel, "custome", StringComparison.OrdinalIgnoreCase))
+        {
+            StatusText = "Custom profiles cannot be deleted from Sound Profiles.";
+            return;
+        }
 
-        if (confirm != Forms.DialogResult.Yes)
+        var confirmDialog = new ConfirmActionDialog(
+            "Delete Imported Pack",
+            $"Delete imported pack '{profile.DisplayName}'?",
+            "Delete Pack")
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+
+        if (confirmDialog.ShowDialog() != true)
         {
             return;
         }
@@ -642,14 +690,15 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        var confirm = Forms.MessageBox.Show(
-            $"Remove '{option.DisplayLabel}' from this profile?",
+        var confirmDialog = new ConfirmActionDialog(
             "Delete Sound Choice",
-            Forms.MessageBoxButtons.YesNo,
-            Forms.MessageBoxIcon.Warning,
-            Forms.MessageBoxDefaultButton.Button2);
+            $"Remove '{option.DisplayLabel}' from this profile?",
+            "Delete")
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
 
-        if (confirm != Forms.DialogResult.Yes)
+        if (confirmDialog.ShowDialog() != true)
         {
             return;
         }
@@ -695,14 +744,15 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        var confirm = Forms.MessageBox.Show(
-            $"Delete '{clipOption.DisplayName}' from this {(row.IsMouseMapping ? "mouse" : "keyboard")} profile?",
+        var confirmDialog = new ConfirmActionDialog(
             "Delete Sound Choice",
-            Forms.MessageBoxButtons.YesNo,
-            Forms.MessageBoxIcon.Warning,
-            Forms.MessageBoxDefaultButton.Button2);
+            $"Delete '{clipOption.DisplayName}' from this {(row.IsMouseMapping ? "mouse" : "keyboard")} profile?",
+            "Delete")
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
 
-        if (confirm != Forms.DialogResult.Yes)
+        if (confirmDialog.ShowDialog() != true)
         {
             return;
         }

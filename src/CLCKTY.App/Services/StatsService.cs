@@ -81,6 +81,26 @@ public sealed class StatsService
         get { lock (_sync) return CalculateXpForLevel(_data.Level + 1); }
     }
 
+    public bool IsExAscensionRequirementMet
+    {
+        get { lock (_sync) return IsExAscensionRequirementMetCore(); }
+    }
+
+    public string ExAscensionRequirementText
+    {
+        get
+        {
+            lock (_sync)
+            {
+                var total = _data.TotalKeyboardClicks + _data.TotalMouseClicks;
+                var week = GetWeeklyClicksCore();
+                var month = GetMonthlyClicksCore();
+                return $"Need 75,000,000 total, 150,000 this week, and 500,000 this month. " +
+                       $"({total:N0}/75,000,000 | {week:N0}/150,000 | {month:N0}/500,000)";
+            }
+        }
+    }
+
     public string MainTitle
     {
         get { lock (_sync) return _data.MainTitle ?? "Newbie Clacker"; }
@@ -184,57 +204,76 @@ public sealed class StatsService
         new("first_click", "First Click", "Make your first click", "F", 0),
         new("baby_clacker", "Baby Clacker", "Reach 100 total clicks", "F", 100),
         new("getting_started", "Getting Started", "Reach 500 total clicks", "F", 500),
+        new("keyboard_rookie_f", "Keyboard Rookie", "50 keyboard clicks", "F", 50),
+        new("mouse_rookie_f", "Mouse Rookie", "50 mouse clicks", "F", 50),
 
         // E-Tier
         new("keyboard_warrior_e", "Keyboard Warrior", "1,000 keyboard clicks", "E", 1_000),
         new("mouse_hunter_e", "Mouse Hunter", "1,000 mouse clicks", "E", 1_000),
         new("casual_clacker", "Casual Clacker", "2,500 total clicks", "E", 2_500),
         new("warming_up", "Warming Up", "5,000 total clicks", "E", 5_000),
+        new("steady_fingers", "Steady Fingers", "7,500 keyboard clicks", "E", 7_500),
+        new("ten_k_clacker_e", "Ten-K Clacker", "10,000 total clicks", "E", 10_000),
 
         // D-Tier
         new("dedicated_d", "Dedicated Typist", "10,000 keyboard clicks", "D", 10_000),
         new("click_addict_d", "Click Addict", "10,000 mouse clicks", "D", 10_000),
         new("double_trouble", "Double Trouble", "Level 10 reached", "D", 0),
         new("clack_machine", "Clack Machine", "25,000 total clicks", "D", 25_000),
+        new("precision_pair_d", "Precision Pair", "15,000 keyboard and mouse clicks", "D", 0),
 
         // C-Tier
         new("keyboard_knight", "Keyboard Knight", "50,000 keyboard clicks", "C", 50_000),
         new("mouse_master_c", "Mouse Master", "50,000 mouse clicks", "C", 50_000),
         new("century_clacker", "Century Clacker", "100,000 total clicks", "C", 100_000),
         new("daily_grinder", "Daily Grinder", "10,000 clicks in a single day", "C", 0),
+        new("level_20", "Ranked Up", "Level 20 reached", "C", 0),
+        new("level_40", "Focused Clacker", "Level 40 reached", "C", 0),
 
         // B-Tier
         new("keyboard_samurai", "Keyboard Samurai", "200,000 keyboard clicks", "B", 200_000),
         new("mouse_ninja", "Mouse Ninja", "200,000 mouse clicks", "B", 200_000),
         new("half_million", "Half Millionaire", "500,000 total clicks", "B", 500_000),
         new("level_25", "Ascended", "Level 25 reached", "B", 0),
+        new("daily_crusher", "Daily Crusher", "25,000 clicks in a single day", "B", 0),
+        new("week_builder_b", "Week Builder", "30,000 clicks in a single week", "B", 0),
 
         // A-Tier
         new("keyboard_legend", "Keyboard Legend", "1,000,000 keyboard clicks", "A", 1_000_000),
         new("mouse_emperor", "Mouse Emperor", "1,000,000 mouse clicks", "A", 1_000_000),
         new("millionaire", "Millionaire Clacker", "1,000,000 total clicks", "A", 1_000_000),
         new("week_warrior", "Week Warrior", "50,000 clicks in a single week", "A", 0),
+        new("level_35", "Elite Pulse", "Level 35 reached", "A", 0),
+        new("level_80", "Momentum Lord", "Level 80 reached", "A", 0),
 
         // S-Tier
         new("keyboard_god", "Keyboard God", "5,000,000 keyboard clicks", "S", 5_000_000),
         new("mouse_overlord", "Mouse Overlord", "5,000,000 mouse clicks", "S", 5_000_000),
         new("level_50", "Transcendent", "Level 50 reached", "S", 0),
+        new("week_conqueror", "Week Conqueror", "100,000 clicks in a single week", "S", 0),
+        new("month_storm_s", "Month Storm", "150,000 clicks in a single month", "S", 0),
 
         // SS-Tier
         new("keyboard_titan", "Keyboard Titan", "25,000,000 keyboard clicks", "SS", 25_000_000),
         new("mouse_titan", "Mouse Titan", "25,000,000 mouse clicks", "SS", 25_000_000),
         new("fifty_million", "Fifty Million Strong", "50,000,000 total clicks", "SS", 50_000_000),
+        new("level_75", "Mythic Striker", "Level 75 reached", "SS", 0),
+        new("level_120", "Crystal Apex", "Level 120 reached", "SS", 0),
 
         // SSS-Tier
         new("keyboard_immortal", "Keyboard Immortal", "100,000,000 keyboard clicks", "SSS", 100_000_000),
         new("mouse_immortal", "Mouse Immortal", "100,000,000 mouse clicks", "SSS", 100_000_000),
         new("level_100", "The Eternal", "Level 100 reached", "SSS", 0),
+        new("month_overdrive", "Month Overdrive", "250,000 clicks in a single month", "SSS", 0),
+        new("level_180", "Abyss Walker", "Level 180 reached", "SSS", 0),
 
         // EX-Tier (nearly impossible)
         new("keyboard_universe", "Keyboard Universe", "500,000,000 keyboard clicks", "EX", 500_000_000),
         new("mouse_universe", "Mouse Universe", "500,000,000 mouse clicks", "EX", 500_000_000),
         new("billion_clacker", "Billion Clacker", "1,000,000,000 total clicks", "EX", 1_000_000_000),
         new("level_200", "The Absolute", "Level 200 reached", "EX", 0),
+        new("level_150", "Realm Breaker", "Level 150 reached", "EX", 0),
+        new("level_320", "EX Ascendant", "Level 320 reached", "EX", 0),
 
         // Secret achievements
         new("secret_spacebar_king", "Spacebar King", "[SECRET] Press spacebar 50,000 times", "A", 0, true),
@@ -253,26 +292,108 @@ public sealed class StatsService
 
         while (_data.CurrentXp >= CalculateXpForLevel(_data.Level + 1))
         {
-            _data.CurrentXp -= CalculateXpForLevel(_data.Level + 1);
+            var nextLevel = _data.Level + 1;
+            if (nextLevel == 320 && !IsExAscensionRequirementMetCore())
+            {
+                // Hard gate for SSS -> EX ascension.
+                break;
+            }
+
+            _data.CurrentXp -= CalculateXpForLevel(nextLevel);
             _data.Level++;
             CheckLevelAchievements();
         }
     }
 
     /// <summary>
-    /// XP formula: base 100, x10 scaling every 10 levels.
-    /// Level 1→2: 100 XP, Level 11→12: 1,000 XP, Level 21→22: 10,000 XP, etc.
+    /// Hardcore XP formula.
+    /// Uses rank-based multipliers by current level with V-cap spikes (x10) on rank promotion gates.
+    /// Example 49 -> 50: 10 * 49^2 * 2, then gate spike x10.
     /// </summary>
     private static long CalculateXpForLevel(int level)
     {
-        if (level <= 1) return 100;
-        var tier = (level - 1) / 10;
-        var baseCost = 100L;
-        for (var i = 0; i < tier; i++)
+        if (level <= 1)
         {
-            baseCost *= 10;
+            return 100;
         }
-        return baseCost + (level * 10);
+
+        var currentLevel = level - 1;
+        var multiplier = GetRankMultiplierForLevel(currentLevel);
+        var baseXp = 10L * currentLevel * currentLevel * multiplier;
+
+        if (IsPromotionGate(currentLevel))
+        {
+            baseXp *= 10;
+        }
+
+        return Math.Max(100, baseXp);
+    }
+
+    private static long GetRankMultiplierForLevel(int currentLevel)
+    {
+        if (currentLevel >= 1000) return 2000;
+        if (currentLevel >= 850) return 1200;
+        if (currentLevel >= 650) return 700;
+        if (currentLevel >= 500) return 400;
+        if (currentLevel >= 400) return 250;
+        if (currentLevel >= 320) return 150;
+
+        if (currentLevel >= 260) return 100;
+        if (currentLevel >= 210) return 60;
+        if (currentLevel >= 170) return 35;
+        if (currentLevel >= 140) return 20;
+        if (currentLevel >= 110) return 12;
+        if (currentLevel >= 80) return 8;
+        if (currentLevel >= 50) return 4;
+        if (currentLevel >= 25) return 2;
+
+        return 1;
+    }
+
+    private static bool IsPromotionGate(int currentLevel)
+    {
+        return currentLevel is 24 or 49 or 79 or 109 or 139 or 169 or 209 or 259 or 319;
+    }
+
+    private bool IsExAscensionRequirementMetCore()
+    {
+        var total = _data.TotalKeyboardClicks + _data.TotalMouseClicks;
+        var week = GetWeeklyClicksCore();
+        var month = GetMonthlyClicksCore();
+
+        return total >= 75_000_000 && week >= 150_000 && month >= 500_000;
+    }
+
+    private long GetWeeklyClicksCore()
+    {
+        var now = DateTime.Now;
+        var startOfWeek = now.AddDays(-(int)now.DayOfWeek);
+        long count = 0;
+        for (var d = startOfWeek.Date; d <= now.Date; d = d.AddDays(1))
+        {
+            var key = d.ToString("yyyy-MM-dd");
+            if (_data.DailyKeyboardClicks.TryGetValue(key, out var kb)) count += kb;
+            if (_data.DailyMouseClicks.TryGetValue(key, out var ms)) count += ms;
+        }
+        return count;
+    }
+
+    private long GetMonthlyClicksCore()
+    {
+        var prefix = DateTime.Now.ToString("yyyy-MM");
+        long count = 0;
+
+        foreach (var kvp in _data.DailyKeyboardClicks)
+        {
+            if (kvp.Key.StartsWith(prefix)) count += kvp.Value;
+        }
+
+        foreach (var kvp in _data.DailyMouseClicks)
+        {
+            if (kvp.Key.StartsWith(prefix)) count += kvp.Value;
+        }
+
+        return count;
     }
 
     private void CheckAchievements()
@@ -284,15 +405,20 @@ public sealed class StatsService
         TryUnlock("first_click", total >= 1);
         TryUnlock("baby_clacker", total >= 100);
         TryUnlock("getting_started", total >= 500);
+        TryUnlock("keyboard_rookie_f", kb >= 50);
+        TryUnlock("mouse_rookie_f", ms >= 50);
 
         TryUnlock("keyboard_warrior_e", kb >= 1_000);
         TryUnlock("mouse_hunter_e", ms >= 1_000);
         TryUnlock("casual_clacker", total >= 2_500);
         TryUnlock("warming_up", total >= 5_000);
+        TryUnlock("steady_fingers", kb >= 7_500);
+        TryUnlock("ten_k_clacker_e", total >= 10_000);
 
         TryUnlock("dedicated_d", kb >= 10_000);
         TryUnlock("click_addict_d", ms >= 10_000);
         TryUnlock("clack_machine", total >= 25_000);
+        TryUnlock("precision_pair_d", kb >= 15_000 && ms >= 15_000);
 
         TryUnlock("keyboard_knight", kb >= 50_000);
         TryUnlock("mouse_master_c", ms >= 50_000);
@@ -328,7 +454,16 @@ public sealed class StatsService
         TryUnlock("daily_grinder", todayTotal >= 10_000);
 
         // Week warrior
+        TryUnlock("week_builder_b", ThisWeekClackity >= 30_000);
         TryUnlock("week_warrior", ThisWeekClackity >= 50_000);
+        TryUnlock("week_conqueror", ThisWeekClackity >= 100_000);
+
+        // Monthly overdrive
+        TryUnlock("month_storm_s", ThisMonthClackity >= 150_000);
+        TryUnlock("month_overdrive", ThisMonthClackity >= 250_000);
+
+        // Daily crusher
+        TryUnlock("daily_crusher", todayTotal >= 25_000);
 
         // Secret: spacebar (0x20)
         if (_data.KeyPressCounts.TryGetValue("20", out var spaceCount))
@@ -370,10 +505,19 @@ public sealed class StatsService
     private void CheckLevelAchievements()
     {
         TryUnlock("double_trouble", _data.Level >= 10);
+        TryUnlock("level_20", _data.Level >= 20);
         TryUnlock("level_25", _data.Level >= 25);
+        TryUnlock("level_35", _data.Level >= 35);
+        TryUnlock("level_40", _data.Level >= 40);
         TryUnlock("level_50", _data.Level >= 50);
+        TryUnlock("level_75", _data.Level >= 75);
+        TryUnlock("level_80", _data.Level >= 80);
         TryUnlock("level_100", _data.Level >= 100);
+        TryUnlock("level_120", _data.Level >= 120);
+        TryUnlock("level_150", _data.Level >= 150);
+        TryUnlock("level_180", _data.Level >= 180);
         TryUnlock("level_200", _data.Level >= 200);
+        TryUnlock("level_320", _data.Level >= 320);
     }
 
     private void TryUnlock(string titleId, bool condition)

@@ -94,13 +94,14 @@ public partial class App : Wpf.Application
 			return;
 		}
 
-		if (_mainViewModel is null || !_mainViewModel.IsKeyboardSoundEnabled)
+		if (_mainViewModel is null || !_mainViewModel.IsEnabled || !_mainViewModel.IsKeyboardSoundEnabled)
 		{
 			return;
 		}
 
+		var keyboardVolume = (float)(_mainViewModel.KeyboardVolume / 100d);
 		_mainViewModel.ReportInputTriggered(e.VirtualKey, KeyEventTrigger.Down);
-		_soundEngine?.StartHoldForKey(e.VirtualKey);
+		_soundEngine?.StartHoldForKey(e.VirtualKey, keyboardVolume);
 		_statsService?.RecordKeyboardClick(e.VirtualKey);
 	}
 
@@ -111,11 +112,18 @@ public partial class App : Wpf.Application
 
 		if (_mainViewModel is null || !_mainViewModel.IsKeyboardSoundEnabled)
 		{
+			_soundEngine?.ReleaseForKey(e.VirtualKey);
 			return;
 		}
 
-		_mainViewModel.ReportInputTriggered(e.VirtualKey, KeyEventTrigger.Up);
-		_soundEngine?.ReleaseForKey(e.VirtualKey);
+		var keyboardVolume = (float)(_mainViewModel.KeyboardVolume / 100d);
+
+		if (_mainViewModel.IsEnabled)
+		{
+			_mainViewModel.ReportInputTriggered(e.VirtualKey, KeyEventTrigger.Up);
+		}
+
+		_soundEngine?.ReleaseForKey(e.VirtualKey, keyboardVolume);
 	}
 
 	private void KeyboardHookService_MouseDown(object? sender, GlobalMouseButtonEventArgs e)
@@ -125,13 +133,14 @@ public partial class App : Wpf.Application
 			return;
 		}
 
-		if (_mainViewModel is null || !_mainViewModel.IsMouseSoundEnabled)
+		if (_mainViewModel is null || !_mainViewModel.IsEnabled || !_mainViewModel.IsMouseSoundEnabled)
 		{
 			return;
 		}
 
+		var mouseVolume = (float)(_mainViewModel.MouseVolume / 100d);
 		_mainViewModel.ReportInputTriggered(e.InputCode, KeyEventTrigger.Down);
-		_soundEngine?.StartHoldForKey(e.InputCode);
+		_soundEngine?.StartHoldForKey(e.InputCode, mouseVolume);
 		_statsService?.RecordMouseClick(e.InputCode);
 	}
 
@@ -139,11 +148,18 @@ public partial class App : Wpf.Application
 	{
 		if (_mainViewModel is null || !_mainViewModel.IsMouseSoundEnabled)
 		{
+			_soundEngine?.ReleaseForKey(e.InputCode);
 			return;
 		}
 
-		_mainViewModel.ReportInputTriggered(e.InputCode, KeyEventTrigger.Up);
-		_soundEngine?.ReleaseForKey(e.InputCode);
+		var mouseVolume = (float)(_mainViewModel.MouseVolume / 100d);
+
+		if (_mainViewModel.IsEnabled)
+		{
+			_mainViewModel.ReportInputTriggered(e.InputCode, KeyEventTrigger.Up);
+		}
+
+		_soundEngine?.ReleaseForKey(e.InputCode, mouseVolume);
 	}
 
 	private void MainViewModel_SoundEnabledChanged(object? sender, bool isEnabled)
