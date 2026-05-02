@@ -95,7 +95,7 @@ dotnet run --project src/CLCKTY.App/CLCKTY.App.csproj
 
 - **License**: Licensed under the [MIT License](LICENSE).
 - **Author**: Created with ❤️ by **Jerwin Cruz (GlytheHorizon)**.
-- **Inspiration**: Inspired by [Keeby] (https://getkeeby.com/) and [MechVibes](https://mechvibes.com/).
+- **Inspiration**: Inspired by [Keeby](https://getkeeby.com/) and [MechVibes](https://mechvibes.com/).
 
 <div align="center">
   <p><i>CLCKTY — Elevating your auditory typing experience, one click at a time.</i></p>
