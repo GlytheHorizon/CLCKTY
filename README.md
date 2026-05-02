@@ -1,75 +1,102 @@
-# CLCKTY
+<div align="center">
+  <img src="src/CLCKTY.App/Assets/Icons/clckty-app.png" width="120" alt="CLCKTY Logo" />
+  <h1>CLCKTY</h1>
+  <p><strong>A Minimalist, Low-Latency Keyboard & Mouse Sound Emulator</strong></p>
 
-CLCKTY is a Windows desktop utility that plays keyboard and mouse sounds globally.
-It is built with .NET 8, WPF, and NAudio, and designed as a lightweight background app with low-latency playback.
+  <p>
+    <img src="https://img.shields.io/badge/Version-2.1.1_Stable-cyan?style=for-the-badge" alt="Version" />
+    <img src="https://img.shields.io/badge/Platform-Windows-blue?style=for-the-badge&logo=windows" alt="Platform" />
+    <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
+  </p>
 
-## What CLCKTY Does
+  <hr />
 
-- Captures global keyboard and mouse input (without storing typed text)
-- Plays cached sounds with low-latency routing
-- Supports separate keyboard and mouse profiles
-- Supports per-input custom mappings (key/mouse to specific sound)
-- Supports custom pack import and per-mapping audio upload
-- Runs in tray mode with quick toggle/open/exit actions
-- Supports startup with Windows
-- Includes an in-app updater (GitHub release scan/download/apply)
+  <h3>🚀 Instant Access</h3>
+  <p>Experience mechanical clicks on any keyboard instantly:</p>
+  <a href="CLCKTY-v2.1.1-onefile-win-x64.zip" style="text-decoration:none;">
+    <img src="https://img.shields.io/badge/DOWNLOAD-STABLE_ZIP-00E5FF?style=for-the-badge&logo=rocket&logoColor=black" alt="Download Button" />
+  </a>
+  <p><small>Portable One-File Release for Windows</small></p>
 
-## Inspiration and Credits
+  <hr />
+</div>
 
-This project is inspired by:
+## 🎹 About the Project
 
-- Keeby
-- MechVibes
+> [!IMPORTANT]
+> **CLCKTY** is a dedicated Windows utility designed to bring the tactile auditory experience of mechanical keyboards and premium mouse clicks to any setup. Built with a focus on performance, it ensures near-zero latency playback for a seamless typing experience.
 
-Important attribution:
+---
 
-- Stock sounds and bundled soundpacks are sourced from MechVibes and other community soundpacks.
-- I do not claim ownership of those sound assets.
-- The CLCKTY application code/implementation is created by me.
+## ✨ Key Features
 
-## Safety
+| Feature | Description |
+| :--- | :--- |
+| **Global Capture** | Hooks into system-wide keyboard and mouse events without logging a single keystroke. |
+| **Low-Latency Audio** | Powered by NAudio for high-performance, real-time sound triggering. |
+| **Custom Mappings** | Map specific keys or mouse buttons to unique audio samples. |
+| **Soundpack Support** | Import custom packs and manage separate profiles for different setups. |
+| **Tray Integration** | Runs discreetly in the system tray with quick toggles and volume control. |
+| **Auto-Updater** | Built-in GitHub release scanner to keep your app up to date automatically. |
 
-CLCKTY does not record, store, or transmit your keystrokes.
-Input events are used only to trigger local sound playback.
+---
 
-## Build and Run
+## 🛠️ Built With
 
-1. Open solution: `CLCKTY.slnx`
-2. Build in Visual Studio 2022+ targeting `net8.0-windows`
-3. Run `CLCKTY.App`
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="96">
+        <img src="https://skillicons.dev/icons?i=dotnet" width="48" height="48" alt=".NET" />
+        <br />.NET 8
+      </td>
+      <td align="center" width="96">
+        <img src="https://skillicons.dev/icons?i=cs" width="48" height="48" alt="C#" />
+        <br />C#
+      </td>
+      <td align="center" width="96">
+        <img src="https://skillicons.dev/icons?i=visualstudio" width="48" height="48" alt="Visual Studio" />
+        <br />VS 2022
+      </td>
+      <td align="center" width="96">
+        <img src="https://skillicons.dev/icons?i=github" width="48" height="48" alt="GitHub" />
+        <br />GitHub
+      </td>
+    </tr>
+  </table>
+</div>
 
-Terminal commands:
+---
 
-- `dotnet build CLCKTY.slnx -c Debug`
-- `dotnet run --project src/CLCKTY.App/CLCKTY.App.csproj`
+## 🏗️ Developer Setup
 
-## Auto Update (GitHub Releases)
+### Prerequisites
+- **Visual Studio 2022** (with .NET desktop development workload)
+- **.NET 8 SDK**
 
-Settings -> Scan for Updates checks the latest GitHub release and can download + stage install automatically.
+### Installation
+```powershell
+# 1. Clone the repository
+git clone https://github.com/GlytheHorizon/CLCKTY.git
 
-Default updater target:
+# 2. Enter directory
+cd CLCKTY
 
-- `https://github.com/GlytheHorizon/CLCKTY`
+# 3. Restore and Build
+dotnet build CLCKTY.slnx -c Release
 
-Optional updater overrides:
+# 4. Run the Application
+dotnet run --project src/CLCKTY.App/CLCKTY.App.csproj
+```
 
-- `CLCKTY_GITHUB_OWNER` (use a different owner)
-- `CLCKTY_GITHUB_REPO` (use a different repository)
-- `CLCKTY_GITHUB_TOKEN` (needed for private repositories)
+---
 
-Release requirement:
+## 📄 License & Credits
 
-- Publish release assets as `.zip` packages containing the app files.
+- **License**: Licensed under the [MIT License](LICENSE).
+- **Author**: Created with ❤️ by **Jerwin Cruz (GlytheHorizon)**.
+- **Inspiration**: Inspired by [Keeby] (https://getkeeby.com/) and [MechVibes](https://mechvibes.com/).
 
-Update flow:
-
-1. Scan for updates
-2. If newer version found, app asks to download
-3. App downloads and stages update
-4. App asks for restart
-5. On restart, updater script applies files and relaunches CLCKTY
-
-## License
-
-This project is open source under the MIT License.
-See `LICENSE` for details.
+<div align="center">
+  <p><i>CLCKTY — Elevating your auditory typing experience, one click at a time.</i></p>
+</div>
