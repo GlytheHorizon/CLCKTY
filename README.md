@@ -5,6 +5,7 @@
 
   <p>
     <img src="https://img.shields.io/badge/Version-2.1.1_Stable-cyan?style=for-the-badge" alt="Version" />
+    <img src="https://img.shields.io/badge/Build-0503262330PMS-blue?style=for-the-badge" alt="Build" />
     <img src="https://img.shields.io/badge/Platform-Windows-blue?style=for-the-badge&logo=windows" alt="Platform" />
     <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   </p>
@@ -13,7 +14,7 @@
 
   <h3>🚀 Instant Access</h3>
   <p>Experience mechanical clicks on any keyboard instantly:</p>
-  <a href="CLCKTY-v2.1.1-onefile-win-x64.zip" style="text-decoration:none;">
+  <a href="https://github.com/GlytheHorizon/CLCKTY/releases/tag/v2.1.1" style="text-decoration:none;">
     <img src="https://img.shields.io/badge/DOWNLOAD-STABLE_ZIP-00E5FF?style=for-the-badge&logo=rocket&logoColor=black" alt="Download Button" />
   </a>
   <p><small>Portable One-File Release for Windows</small></p>
@@ -95,7 +96,7 @@ dotnet run --project src/CLCKTY.App/CLCKTY.App.csproj
 
 - **License**: Licensed under the [MIT License](LICENSE).
 - **Author**: Created with ❤️ by **Jerwin Cruz (GlytheHorizon)**.
-- **Inspiration**: Inspired by [Keeby](https://getkeeby.com/) and [MechVibes](https://mechvibes.com/).
+- **Inspiration**: Inspired by [Keeby] (https://getkeeby.com/) and [MechVibes](https://mechvibes.com/).
 
 <div align="center">
   <p><i>CLCKTY — Elevating your auditory typing experience, one click at a time.</i></p>
